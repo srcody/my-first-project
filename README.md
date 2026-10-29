@@ -20,3 +20,7 @@ Open `index.html` in a browser.
 ## Deploy to Netlify
 
 There is no build step. Drag this folder into Netlify, or connect the repo with the build command left blank and the publish directory set to the repository root.
+
+## Pothole Patrol (mini game)
+
+`pothole-game/` holds a small browser game. Hold and drag to pour asphalt into the pothole, then drag the roller over the patch until it's smooth. The pothole gets bigger every level, and you score more for finishing faster. Open `pothole-game/index.html` in a browser to play (works with mouse or touch).

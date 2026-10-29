@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Pothole Patrol</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="hud">
+    <div class="title">Pothole Patrol</div>
+    <div class="stats">
+      <span>Level <b id="level">1</b></span>
+      <span>Time <b id="time">0.0</b>s</span>
+      <span>Score <b id="score">0</b></span>
+    </div>
+  </header>
+
+  <div class="tools">
+    <button id="tool-shovel" class="tool active" disabled>🪣 1. Fill</button>
+    <button id="tool-roller" class="tool" disabled>🚜 2. Roll</button>
+    <div class="progress"><div id="bar"></div><span id="bar-label">Fill 0%</span></div>
+  </div>
+
+  <main class="stage">
+    <canvas id="game"></canvas>
+    <div id="hint" class="hint">Hold and drag over the pothole to pour asphalt</div>
+
+    <div id="overlay" class="overlay">
+      <div class="card">
+        <h1 id="ov-title">Pothole Patrol</h1>
+        <p id="ov-text">Fill the pothole with hot asphalt, then roll it flat with the roller. Each level the potholes get bigger.</p>
+        <button id="ov-btn">Start</button>
+      </div>
+    </div>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>

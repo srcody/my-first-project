@@ -1,0 +1,114 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: #1d1f22;
+  color: #f2f2f2;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+}
+
+body { display: flex; flex-direction: column; }
+
+.hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #f2b705;
+  color: #1d1f22;
+}
+
+.title { font-weight: 800; font-size: 20px; letter-spacing: .5px; }
+.stats { display: flex; gap: 16px; font-size: 15px; }
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #2a2d31;
+}
+
+.tool {
+  border: 2px solid #555;
+  background: #3a3d42;
+  color: #ccc;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.tool.active { border-color: #f2b705; color: #fff; background: #4a4535; }
+.tool.done { opacity: .5; text-decoration: line-through; }
+
+.progress {
+  position: relative;
+  flex: 1;
+  height: 24px;
+  background: #3a3d42;
+  border-radius: 12px;
+  overflow: hidden;
+}
+#bar { height: 100%; width: 0; background: #f2b705; transition: width .1s; }
+#bar-label {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+  text-shadow: 0 1px 2px #000;
+}
+
+.stage { position: relative; flex: 1; min-height: 0; }
+canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+
+.hint {
+  position: absolute;
+  left: 50%; bottom: 16px;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, .65);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  pointer-events: none;
+  white-space: nowrap;
+  transition: opacity .3s;
+}
+
+.overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, .55);
+}
+.overlay.hidden { display: none; }
+
+.card {
+  max-width: 380px;
+  text-align: center;
+  background: #2a2d31;
+  border-top: 6px solid #f2b705;
+  border-radius: 12px;
+  padding: 24px;
+}
+.card h1 { font-size: 26px; margin-bottom: 10px; }
+.card p { color: #ccc; line-height: 1.45; margin-bottom: 18px; }
+.card button {
+  background: #f2b705;
+  color: #1d1f22;
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 28px;
+  font-size: 17px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+@media (max-width: 520px) {
+  .title { font-size: 17px; }
+  .stats { gap: 10px; font-size: 13px; }
+  .tool { padding: 5px 8px; font-size: 12px; }
+}
