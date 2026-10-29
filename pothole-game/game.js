@@ -303,20 +303,20 @@
     return null;
   }
 
-  // Cones from level 2: placed near the holes so the roller has to steer around them.
+  // Cones from level 2: placed near the holes, with room for the roller to steer between them.
   function placeCones(start) {
     cones = [];
     const count = level < 2 ? 0 : Math.min(10, level + 1);
-    for (let tries = 0; cones.length < count && tries < 500; tries++) {
+    for (let tries = 0; cones.length < count && tries < 1500; tries++) {
       const h = holes[Math.floor(Math.random() * holes.length)];
-      const [x, y] = rimPoint(h, rand(0, Math.PI * 2), rand(45, 85));
+      const [x, y] = rimPoint(h, rand(0, Math.PI * 2), rand(80, 130));
       if (x < 20 || y < 45 || x > world.w - 20 || y > world.h - 45) continue;
       if (holes.some((o) => {
         const dx = (x - o.cx) / o.rx, dy = (y - o.cy) / o.ry;
-        return Math.hypot(dx, dy) < edge(o, Math.atan2(dy, dx)) + 30 / o.ry;
+        return Math.hypot(dx, dy) < edge(o, Math.atan2(dy, dx)) + 70 / o.ry;
       })) continue;
-      if (cones.some((c) => Math.hypot(c.x - x, c.y - y) < 50)) continue;
-      if (Math.hypot(start.x - x, start.y - y) < 100) continue;
+      if (cones.some((c) => Math.hypot(c.x - x, c.y - y) < 110)) continue;
+      if (Math.hypot(start.x - x, start.y - y) < 140) continue;
       cones.push({ x, y, knocked: false, vx: 0, vy: 0, rot: 0, vr: 0 });
     }
   }
@@ -366,8 +366,8 @@
     ui.meterIcon.parentElement.title = p === 'roll' || p === 'done' ? 'Asphalt temperature' : 'Asphalt left in the truck';
     if (p === 'fill') {
       ui.hint.textContent = holes.length > 1
-        ? `Fill all ${holes.length} potholes. Spills cost accuracy and truck load`
-        : 'Pour inside the hole: spills cost accuracy and truck load';
+        ? `Fill all ${holes.length} potholes. Glowing spots need asphalt`
+        : 'Pour into the glowing spots. Spills cost accuracy and truck load';
     }
     if (p === 'roll') ui.hint.textContent = 'Roll it flat while it is hot, and mind the cones';
   }
@@ -668,6 +668,8 @@
 
   function paintHole(hole) {
     const d = hole.data.data;
+    // while filling, spots that still need asphalt glow orange and pulse
+    const glow = phase === 'fill' ? 0.5 + 0.2 * Math.sin(performance.now() / 180) : 0;
     const put = (idx, c) => {
       // empty hole: dirty gravel, darker under the rim
       const shade = 0.55 + 0.35 * ((c.dy + 1) / 2) + 0.1 * c.depth;
@@ -677,10 +679,17 @@
       const ar = 78 + lump + warm + (30 + sm - 78 - lump) * c.comp;
       const ag = 76 + lump + warm * 0.3 + (31 + sm - 76 - lump) * c.comp;
       const ab = 74 + lump - warm * 0.4 + (34 + sm - 74 - lump) * c.comp;
+      let r = hr + (ar - hr) * c.fill, g = hg + (ag - hg) * c.fill, b = hb + (ab - hb) * c.fill;
+      if (glow && c.fill < 1) {
+        const k = glow * (0.45 + 0.55 * (1 - c.fill));
+        r += (255 - r) * k;
+        g += (150 - g) * k;
+        b += (30 - b) * k;
+      }
       const o = idx * 4;
-      d[o] = hr + (ar - hr) * c.fill;
-      d[o + 1] = hg + (ag - hg) * c.fill;
-      d[o + 2] = hb + (ab - hb) * c.fill;
+      d[o] = r;
+      d[o + 1] = g;
+      d[o + 2] = b;
       d[o + 3] = 255;
     };
     for (const c of hole.cells) put(c.idx, c);
