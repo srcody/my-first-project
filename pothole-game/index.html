@@ -8,7 +8,7 @@
 </head>
 <body>
   <header class="hud">
-    <div class="title">Pothole Patrol</div>
+    <div class="title">Pothole Patrol <button id="mute" class="mute" aria-label="Mute sound">🔊</button></div>
     <div class="stats">
       <span>Level <b id="level">1</b></span>
       <span>Time <b id="time">0.0</b>s</span>
@@ -22,6 +22,10 @@
     <button id="tool-shovel" class="tool active" disabled>🪣 1. Fill</button>
     <button id="tool-roller" class="tool" disabled>🚜 2. Roll</button>
     <div class="progress"><div id="bar"></div><span id="bar-label">Fill 0%</span></div>
+    <div class="meter" title="Asphalt left in the truck">
+      <span id="meter-icon">🚚</span>
+      <div class="meter-track"><div id="meter-bar"></div></div>
+    </div>
   </div>
 
   <main class="stage">
@@ -31,7 +35,15 @@
     <div id="overlay" class="overlay">
       <div class="card">
         <h1 id="ov-title">Pothole Patrol</h1>
-        <p id="ov-text">Fill the pothole with hot asphalt, then roll it flat with the roller. Pour carefully: asphalt spilled on the road lowers your accuracy score. Each level the potholes get bigger.</p>
+        <div id="ov-text" class="ov-text">
+          <p>Fill every pothole with hot asphalt, then flatten it with the roller.</p>
+          <ul>
+            <li>🎯 Pour inside the holes: spills cost accuracy.</li>
+            <li>🚚 The truck only holds so much. Run out and you redo the level.</li>
+            <li>🌡️ Asphalt cools after it's poured. Roll it while it's hot for a bonus.</li>
+            <li>🚧 Don't knock over the cones.</li>
+          </ul>
+        </div>
         <div id="ov-stats" class="summary"></div>
         <button id="ov-btn">Start</button>
       </div>
