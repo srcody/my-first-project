@@ -332,7 +332,7 @@
     cells = holes.flatMap((h) => h.cells);
     brush = Math.min(34, 18 + level * 2);
     // the truck carries a bit more than the holes need; the margin shrinks with level
-    supply = cells.length * Math.max(1.5, 1.9 - level * 0.04);
+    supply = cells.length * Math.max(1.5, 1.9 - level * 0.04) * 1.1;
     coolTime = 25 + level * 6;
   }
 
