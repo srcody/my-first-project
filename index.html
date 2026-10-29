@@ -2,143 +2,173 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0f7fc9">
-  <title>Tidecast</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230f7fc9'/%3E%3Ccircle cx='32' cy='30' r='12' fill='%23ffc24b'/%3E%3Cpath d='M0 40q8-6 16 0t16 0 16 0 16 0v24H0z' fill='%2338c6d9'/%3E%3C/svg%3E">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#17181a">
+  <meta name="description" content="Paving, repair, sealcoating and striping across the Treasure Coast and South Florida. Request a free estimate.">
+  <title>Asphalt Care Services</title>
+  <link rel="icon" href="https://www.asphaltcareservices.com/wp-content/uploads/2026/04/cropped-AC-FAVICON-32x32.png">
+  <link rel="apple-touch-icon" href="https://www.asphaltcareservices.com/wp-content/uploads/2026/04/cropped-AC-FAVICON-270x270.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&family=Poppins:wght@500;600;700;800&display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
-<body class="clear day">
-  <!-- Animated background: which layers show depends on the weather and time of day -->
-  <div class="scene" aria-hidden="true">
-    <div class="sun"></div>
-    <div class="moon"></div>
-    <div id="stars" class="stars"></div>
-    <div class="clouds"><span></span><span></span><span></span></div>
-    <div id="precip" class="precip"></div>
-    <div class="flash"></div>
-    <svg class="bolt" viewBox="0 0 48 80"><polygon points="30,0 6,46 22,46 12,80 44,30 27,30 40,0"/></svg>
-    <div class="waves"><span></span><span></span><span></span></div>
-  </div>
+<body>
+  <header class="topbar">
+    <a href="#home" class="logo">
+      <img src="https://asphaltcareservices.com/wp-content/uploads/2026/03/logo.png" alt="Asphalt Care Services, LLC"
+           onerror="this.replaceWith(Object.assign(document.createElement('span'), { className: 'logo-text', innerHTML: 'ASPHALT <b>CARE</b> SERVICES' }))">
+    </a>
+    <a class="btn btn-red btn-sm" href="tel:7728882840">
+      <svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>
+      Call
+    </a>
+  </header>
 
-  <main class="app">
-    <header class="brand">
-      <svg viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#0f7fc9"/><circle cx="32" cy="30" r="12" fill="#ffc24b"/><path d="M0 40q8-6 16 0t16 0 16 0 16 0v24H0z" fill="#38c6d9"/></svg>
-      Tidecast
-    </header>
-
-    <form id="search" class="glass search" autocomplete="off">
-      <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
-      <input id="query" type="search" placeholder="Search for a city" aria-label="Search for a city">
-      <ul id="results" class="glass results" hidden></ul>
-    </form>
-
-    <section class="current">
-      <h1 id="place">Hobe Sound</h1>
-      <div id="date" class="date"></div>
-      <div id="temp" class="temp">--°</div>
-      <div id="condition" class="condition">Loading…</div>
-      <div id="hilo" class="hilo"></div>
+  <main>
+    <!-- Home -->
+    <section id="home" class="hero">
+      <p class="eyebrow">Stuart, FL · Treasure Coast · South Florida</p>
+      <h1>Quality you can <span>drive on.</span></h1>
+      <p class="lead">Professional asphalt paving, repair and maintenance backed by 35+ years of experience. From driveways to commercial lots, done right the first time.</p>
+      <div class="hero-actions">
+        <a class="btn btn-red" href="#estimate">Get a free estimate</a>
+        <a class="btn btn-ghost" href="#checkup">Check my pavement</a>
+      </div>
+      <div class="stats">
+        <div><b>35+</b><span>Years</span></div>
+        <div><b>2,339</b><span>Projects</span></div>
+        <div><b>24</b><span>Team members</span></div>
+        <div><b>4.8★</b><span>54 Google reviews</span></div>
+      </div>
+      <div class="road" aria-hidden="true"></div>
     </section>
 
-    <section class="glass card">
-      <h2>Hourly forecast</h2>
-      <div id="hourly" class="hourly"></div>
+    <!-- Pavement checkup -->
+    <section id="checkup" class="section">
+      <p class="eyebrow">Pavement checkup</p>
+      <h2>What does your pavement need?</h2>
+      <p class="sub">Tap everything you're seeing and we'll point you to the right service.</p>
+      <div id="symptoms" class="symptoms"></div>
+      <div id="advice" class="advice" hidden>
+        <h3>We recommend</h3>
+        <ul id="advice-list"></ul>
+        <a id="advice-cta" class="btn btn-red" href="#estimate">Request an estimate for this</a>
+      </div>
     </section>
 
-    <section id="marine" class="glass card" hidden>
-      <h2><svg viewBox="0 0 24 24"><path d="M2 12q2.5-3 5 0t5 0 5 0 5 0M2 18q2.5-3 5 0t5 0 5 0 5 0M12 3v5"/></svg>Beach &amp; boating</h2>
-      <div class="marine-grid">
-        <div>
-          <span class="label">Waves</span>
-          <p id="waves" class="value">--</p>
-          <p id="wave-info" class="note"></p>
+    <!-- Services -->
+    <section id="services" class="section section-alt">
+      <p class="eyebrow">What we do</p>
+      <h2>Our services</h2>
+      <div id="service-list" class="service-list"></div>
+    </section>
+
+    <!-- Why us -->
+    <section class="section">
+      <p class="eyebrow">Why choose us</p>
+      <h2>Built different. Built to last.</h2>
+      <div class="why">
+        <div><svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg><h3>Licensed &amp; insured</h3><p>Complete peace of mind on every project.</p></div>
+        <div><svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/></svg><h3>Quality</h3><p>Premium results that raise the bar for Treasure Coast paving.</p></div>
+        <div><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><h3>35+ years</h3><p>Decades paving South Florida's roads, driveways and lots.</p></div>
+        <div><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V10l7-5 7 5v11M9 21v-6h6v6"/></svg><h3>Family owned</h3><p>Founded by Earl Prickett, a 40-year asphalt industry veteran.</p></div>
+      </div>
+    </section>
+
+    <!-- Reviews -->
+    <section id="reviews" class="section section-dark">
+      <p class="eyebrow">Testimonials</p>
+      <h2>What our clients say</h2>
+      <div id="review-list" class="reviews"></div>
+      <a class="link" href="https://www.asphaltcareservices.com/testimonials/" target="_blank" rel="noopener">Read all reviews →</a>
+    </section>
+
+    <!-- Estimate -->
+    <section id="estimate" class="section">
+      <p class="eyebrow">Free estimate</p>
+      <h2>Protect and improve your pavement</h2>
+      <p class="sub">Tell us about your project and we'll contact you shortly with an honest assessment.</p>
+
+      <form id="estimate-form" class="form" name="estimate" method="POST" data-netlify="true" netlify-honeypot="bot-field" enctype="multipart/form-data">
+        <input type="hidden" name="form-name" value="estimate">
+        <p hidden><label>Leave this empty <input name="bot-field"></label></p>
+
+        <label>Name*<input name="name" required autocomplete="name"></label>
+        <div class="row">
+          <label>Phone*<input name="phone" type="tel" required autocomplete="tel"></label>
+          <label>Email*<input name="email" type="email" required autocomplete="email"></label>
         </div>
-        <div>
-          <span class="label">Water</span>
-          <p id="water" class="value">--</p>
-          <p class="note">Sea surface</p>
+        <div class="row">
+          <label>Service*
+            <select name="service" id="service-select" required>
+              <option value="">Choose a service</option>
+              <option>Asphalt Paving</option>
+              <option>Asphalt Repair</option>
+              <option>Asphalt Maintenance</option>
+              <option>Line Striping</option>
+              <option>Sealcoating</option>
+            </select>
+          </label>
+          <label>Property type
+            <select name="property">
+              <option>Commercial lot</option>
+              <option>HOA / community roads</option>
+              <option>Residential driveway</option>
+              <option>Other</option>
+            </select>
+          </label>
         </div>
-        <div>
-          <span class="label">Swell</span>
-          <p id="swell" class="value">--</p>
-          <p id="swell-info" class="note"></p>
-        </div>
-      </div>
-      <div id="boating" class="boating"></div>
+        <label>Property address or city<input name="location" autocomplete="street-address" placeholder="e.g. Stuart, FL"></label>
+        <label>How did you hear about us?*
+          <select name="source" required>
+            <option value="">Choose one</option>
+            <option>Google</option>
+            <option>Social Media</option>
+            <option>Yard Sign</option>
+            <option>Word of Mouth</option>
+            <option>Referral</option>
+          </select>
+        </label>
+        <label>Message<textarea name="message" id="message" rows="4" placeholder="Size of the area, what you're seeing, timing…"></textarea></label>
+        <label class="file">Photos of the pavement (optional)<input name="photos" type="file" accept="image/*" multiple></label>
+        <button class="btn btn-red btn-block" type="submit">Request a free estimate</button>
+        <p id="form-status" class="form-status" role="status"></p>
+      </form>
     </section>
 
-    <section class="glass card">
-      <h2><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/></svg>Sun &amp; UV</h2>
-      <svg class="arc" viewBox="0 0 300 120">
-        <defs>
-          <linearGradient id="arc-grad" x1="0" x2="1">
-            <stop offset="0" stop-color="#ffb36b"/>
-            <stop offset="0.5" stop-color="#ffe08a"/>
-            <stop offset="1" stop-color="#ff8a65"/>
-          </linearGradient>
-        </defs>
-        <path class="arc-track" d="M20 104A130 86 0 0 1 280 104" pathLength="100"/>
-        <path id="arc-done" class="arc-done" d="M20 104A130 86 0 0 1 280 104" pathLength="100"/>
-        <line class="horizon" x1="6" y1="104" x2="294" y2="104"/>
-        <circle id="sun-dot" class="sun-dot" cx="20" cy="104" r="8"/>
-      </svg>
-      <div class="sun-times">
-        <div><span class="label">Sunrise</span><b id="sunrise">--</b></div>
-        <div><span class="label">Golden hour</span><b id="golden">--</b></div>
-        <div><span class="label">Sunset</span><b id="sunset">--</b></div>
-      </div>
-      <div class="uv">
-        <div class="uv-head">
-          <span class="label">UV index</span>
-          <span><b id="uv">--</b> <span id="uv-level"></span></span>
-        </div>
-        <div class="uv-bar"><i id="uv-marker"></i></div>
-        <p id="uv-tip" class="note"></p>
-      </div>
+    <!-- Areas -->
+    <section id="areas" class="section section-alt">
+      <p class="eyebrow">Where we serve</p>
+      <h2>Areas we serve</h2>
+      <p class="sub">Paving, maintenance and sealcoating throughout the Treasure Coast and surrounding areas.</p>
+      <div id="area-list" class="areas"></div>
     </section>
 
-    <section class="glass card">
-      <h2>7-day forecast</h2>
-      <div id="daily" class="daily"></div>
+    <!-- Contact -->
+    <section id="contact" class="section section-dark">
+      <p class="eyebrow">Contact us</p>
+      <h2>Let's connect today</h2>
+      <div class="contact">
+        <a class="contact-item" href="tel:7728882840"><svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg><span><small>Treasure Coast</small>772.888.2840</span></a>
+        <a class="contact-item" href="tel:5618551336"><svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg><span><small>Palm Beach</small>561.855.1336</span></a>
+        <a class="contact-item" href="mailto:info@asphaltcareservices.com"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span><small>Email</small>info@asphaltcareservices.com</span></a>
+        <a class="contact-item" href="https://www.google.com/maps/search/?api=1&query=6626+SE+Wigeon+Ct+Stuart+FL+34997" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg><span><small>Directions</small>6626 SE Wigeon Ct, Stuart, FL 34997</span></a>
+      </div>
+      <a class="link" href="https://www.asphaltcareservices.com/" target="_blank" rel="noopener">Visit asphaltcareservices.com →</a>
     </section>
 
-    <section class="details">
-      <div class="glass tile">
-        <h2><svg viewBox="0 0 24 24"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0Z"/></svg>Feels like</h2>
-        <p id="feels" class="value">--</p>
-        <p id="feels-note" class="note"></p>
-      </div>
-      <div class="glass tile">
-        <h2><svg viewBox="0 0 24 24"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z"/></svg>Humidity</h2>
-        <p id="humidity" class="value">--</p>
-        <p id="dew" class="note"></p>
-      </div>
-      <div class="glass tile">
-        <h2><svg viewBox="0 0 24 24"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg>Wind</h2>
-        <div class="wind">
-          <div>
-            <p id="wind" class="value">--</p>
-            <p id="wind-dir" class="note"></p>
-          </div>
-          <div class="compass">
-            <span class="n">N</span>
-            <svg id="arrow" class="arrow" viewBox="0 0 24 24"><path d="M12 3 7 13h3.5v8h3v-8H17Z"/></svg>
-          </div>
-        </div>
-      </div>
-      <div class="glass tile">
-        <h2><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 18 0ZM12 12v7a2 2 0 0 1-4 0"/></svg>Precipitation</h2>
-        <p id="precip-now" class="value">--</p>
-        <p id="precip-today" class="note"></p>
-      </div>
-    </section>
-
-    <footer>Weather data by <a href="https://open-meteo.com/">Open-Meteo</a></footer>
+    <footer>© <span id="year"></span> Asphalt Care Services, LLC</footer>
   </main>
+
+  <nav class="tabs" aria-label="Sections">
+    <a href="#home"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7M5 10v10h14V10"/></svg>Home</a>
+    <a href="#services"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Services</a>
+    <a href="#checkup"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>Checkup</a>
+    <a href="#estimate"><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>Estimate</a>
+    <a href="#contact"><svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>Contact</a>
+  </nav>
+
   <script src="app.js"></script>
 </body>
 </html>

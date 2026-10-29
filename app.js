@@ -1,305 +1,164 @@
-// Ocean conditions come from just offshore of Hobe Sound Beach, since the town itself is inland of the water
-const DEFAULT_PLACE = { name: "Hobe Sound", latitude: 27.0595, longitude: -80.1364, marine: { latitude: 27.06, longitude: -80.09 } };
+const SITE = "https://www.asphaltcareservices.com";
 
-// ---------- Illustrated icons (64x64 SVG) ----------
+// Services, grouped the way the website groups them. `form` is the matching option in the estimate form.
+const SERVICES = [
+  {
+    name: "Asphalt Paving",
+    blurb: "Rehabilitation and resurfacing for existing commercial pavement",
+    url: "/services/asphalt-paving/",
+    items: [
+      { id: "lot-paving", name: "Parking Lot Paving", desc: "New and replacement paving for commercial lots", url: "/services/parking-lot-paving/", form: "Asphalt Paving" },
+      { id: "overlay", name: "Asphalt Overlay", desc: "A fresh layer of asphalt over sound existing pavement", url: "/services/asphalt-overlay/", form: "Asphalt Paving" },
+      { id: "milling", name: "Asphalt Milling", desc: "Precision surface removal for overlays and reconstruction", url: "/services/asphalt-milling/", form: "Asphalt Paving" },
+      { id: "rip-out", name: "Rip Out and Replace", desc: "Full removal and rebuild of failed pavement", url: "/services/rip-out-and-replace/", form: "Asphalt Paving" },
+    ],
+  },
+  {
+    name: "Asphalt Repair",
+    blurb: "Structural repairs for deteriorating commercial pavement",
+    url: "/services/asphalt-repair/",
+    items: [
+      { id: "lot-repair", name: "Parking Lot Repair", desc: "Fix damaged areas before they spread", url: "/services/parking-lot-repair/", form: "Asphalt Repair" },
+      { id: "patching", name: "Asphalt Patching", desc: "Repair isolated damaged sections", url: "/services/asphalt-patching/", form: "Asphalt Repair" },
+      { id: "saw-cut", name: "Saw Cut and Removal", desc: "Clean cuts to remove and replace failed sections", url: "/services/saw-cut-and-removal/", form: "Asphalt Repair" },
+      { id: "pothole", name: "Pothole Repair", desc: "Lasting fixes for potholes of any size", url: "/services/pothole-repair/", form: "Asphalt Repair" },
+      { id: "puddle", name: "Puddle Repair", desc: "Correct low spots where water collects", url: "/services/puddle-repair/", form: "Asphalt Repair" },
+    ],
+  },
+  {
+    name: "Asphalt Maintenance",
+    blurb: "Proactive maintenance programs to maximize pavement life",
+    url: "/services/asphalt-maintenance/",
+    items: [
+      { id: "crack-fill", name: "Crack Filling", desc: "Fill cracks to keep water out of the base", url: "/services/crack-filling/", form: "Asphalt Maintenance" },
+      { id: "crack-seal", name: "Crack Sealing", desc: "Seal moving cracks with a flexible sealant", url: "/services/crack-sealing/", form: "Asphalt Maintenance" },
+      { id: "sealcoat", name: "Sealcoating", desc: "Commercial-grade protection for parking lots and paved surfaces", url: "/services/sealcoating/", form: "Sealcoating" },
+      { id: "striping", name: "Line Striping", desc: "Parking lot lines, arrows and markings", url: "/services/striping/", form: "Line Striping" },
+    ],
+  },
+];
+const SERVICE_BY_ID = Object.fromEntries(SERVICES.flatMap((g) => g.items).map((s) => [s.id, s]));
 
-const sun = '<circle cx="32" cy="32" r="11" fill="#ffc24b"/><path d="M32 9v6M32 49v6M9 32h6M49 32h6M15.7 15.7l4.2 4.2M44.1 44.1l4.2 4.2M15.7 48.3l4.2-4.2M44.1 19.9l4.2-4.2" stroke="#ffc24b" stroke-width="4" stroke-linecap="round"/>';
-const moon = '<path d="M40 11a21 21 0 1 0 14 31A17 17 0 0 1 40 11Z" fill="#f4e7c3"/>';
-const cloud = (fill = "#fff", y = 0) => `<path transform="translate(0 ${y})" d="M18 50a11 11 0 0 1-1-22 15 15 0 0 1 28-4 12 12 0 0 1 3 26Z" fill="${fill}"/>`;
-const small = (shape) => `<g transform="translate(2 -2) scale(.62)">${shape}</g>`;
-const drops = (n) => [22, 32, 42].slice(0, n).map((x) => `<path d="M${x} 48l-3 8" stroke="#4fc3f7" stroke-width="3.5" stroke-linecap="round"/>`).join("");
+// Pavement checkup: what someone might see, and which services address it
+const SYMPTOMS = [
+  { label: "Cracks in the surface", icon: '<path d="M4 4l5 6-3 4 5 6M14 3l2 5-3 3 4 4"/>', services: ["crack-fill", "crack-seal"] },
+  { label: "Potholes", icon: '<ellipse cx="12" cy="13" rx="8" ry="4"/><path d="M8 12q4 3 8 0"/>', services: ["pothole", "patching"] },
+  { label: "Puddles or standing water", icon: '<path d="M12 3s5 5.5 5 9a5 5 0 0 1-10 0c0-3.5 5-9 5-9Z"/><path d="M3 21h18"/>', services: ["puddle"] },
+  { label: "Faded, gray surface", icon: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 15l5-4 4 3 4-5 5 4"/>', services: ["sealcoat"] },
+  { label: "Faded or missing lines", icon: '<path d="M6 3v18M18 3v4M18 11v2M18 17v4"/>', services: ["striping"] },
+  { label: "Crumbling or web-like cracks", icon: '<path d="M3 12h18M12 3v18M5 5l14 14M19 5 5 19"/>', services: ["saw-cut", "lot-repair"] },
+  { label: "Worn out, rough surface", icon: '<path d="M3 17q3-6 6 0t6 0 6 0"/><path d="M3 10h18"/>', services: ["overlay", "milling"] },
+  { label: "Sinking or failed areas", icon: '<path d="M3 8h6l3 6 3-6h6"/><path d="M3 18h18"/>', services: ["rip-out"] },
+  { label: "New lot or driveway", icon: '<path d="M12 5v14M5 12h14"/>', services: ["lot-paving"] },
+];
 
-const ICONS = {
-  sun,
-  moon,
-  partlyDay: small(sun) + cloud("#fff", 4),
-  partlyNight: small(moon) + cloud("#e4ebf2", 4),
-  cloud: cloud("#eef3f7", 0),
-  fog: cloud("#e4ebf2", -6) + '<path d="M14 50h36M20 57h26" stroke="#e4ebf2" stroke-width="3.5" stroke-linecap="round"/>',
-  drizzle: cloud("#eef3f7", -8) + drops(2),
-  rain: cloud("#dfe7ee", -8) + drops(3),
-  storm: cloud("#b8c4cf", -8) + '<path d="M34 40l-9 12h7l-4 10 13-15h-7l4-7Z" fill="#ffc24b"/>',
-  snow: cloud("#eef3f7", -8) + [22, 32, 42].map((x, i) => `<circle cx="${x}" cy="${50 + (i % 2) * 6}" r="3" fill="#bfe9ff"/>`).join(""),
-};
+// Excerpts from the testimonials on the website
+const REVIEWS = [
+  { name: "Michael S.", role: "Operations Director, regional mall", text: "I have often had the pleasure of working with Asphalt Care for everything from small “sinkholes” in our parking lot to large scale sealcoating projects." },
+  { name: "Jimmy S.", role: "Parking lot striping", text: "Excellent work completed in a timely manner. Staff was extremely professional and the customer service was phenomenal!!" },
+  { name: "David L.", role: "Oceanrise Condominium, Jensen Beach", text: "Asphalt Care Services recently completed the re-topping, striping, and replacement of concrete bumpers at Oceanrise Condominium in Jensen Beach, and we could not be more pleased with the results." },
+  { name: "Brett", role: "Neighborhood sealcoating", text: "Asphalt care did a great job sealing my neighborhood. Someone drove through their coned off area messing it up and they were still able to fix it perfectly." },
+  { name: "Mary M.", role: "Timber Ridge community", text: "Earl and crew were excellent in every aspect. Our whole Timber Ridge Community did the resurfacing of our roads. They are the BEST." },
+  { name: "Kim O.", role: "Residential driveway", text: "I highly, highly recommend Asphalt Care Services, LLC. They removed my old tar driveway and replaced it with a new tar driveway." },
+  { name: "Toni L.", role: "Community roads", text: "Our community is having its roads resurfaced and the roads look great. The project is being conducted in a professional manner with proper precautions being taken." },
+];
 
-// WMO weather codes -> [description, day icon, night icon, scene]
-const CODES = {
-  0: ["Clear", "sun", "moon", "clear"],
-  1: ["Mostly Clear", "partlyDay", "partlyNight", "clear"],
-  2: ["Partly Cloudy", "partlyDay", "partlyNight", "cloudy"],
-  3: ["Cloudy", "cloud", "cloud", "cloudy"],
-  45: ["Fog", "fog", "fog", "cloudy"],
-  48: ["Fog", "fog", "fog", "cloudy"],
-  51: ["Light Drizzle", "drizzle", "drizzle", "rain"],
-  53: ["Drizzle", "drizzle", "drizzle", "rain"],
-  55: ["Heavy Drizzle", "rain", "rain", "rain"],
-  56: ["Freezing Drizzle", "drizzle", "drizzle", "rain"],
-  57: ["Freezing Drizzle", "rain", "rain", "rain"],
-  61: ["Light Rain", "drizzle", "drizzle", "rain"],
-  63: ["Rain", "rain", "rain", "rain"],
-  65: ["Heavy Rain", "rain", "rain", "rain"],
-  66: ["Freezing Rain", "rain", "rain", "rain"],
-  67: ["Freezing Rain", "rain", "rain", "rain"],
-  71: ["Light Snow", "snow", "snow", "snow"],
-  73: ["Snow", "snow", "snow", "snow"],
-  75: ["Heavy Snow", "snow", "snow", "snow"],
-  77: ["Snow Grains", "snow", "snow", "snow"],
-  80: ["Showers", "drizzle", "drizzle", "rain"],
-  81: ["Showers", "rain", "rain", "rain"],
-  82: ["Heavy Showers", "rain", "rain", "rain"],
-  85: ["Snow Showers", "snow", "snow", "snow"],
-  86: ["Snow Showers", "snow", "snow", "snow"],
-  95: ["Thunderstorm", "storm", "storm", "storm"],
-  96: ["Thunderstorm", "storm", "storm", "storm"],
-  99: ["Thunderstorm", "storm", "storm", "storm"],
-};
-
-const DIRECTIONS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+const AREAS = [
+  ["Stuart, FL", "/"], ["Port St. Lucie, FL", "port-st-lucie-fl"], ["Jensen Beach, FL", "jensen-beach-fl"],
+  ["Fort Pierce, FL", "fort-pierce-fl"], ["Vero Beach, FL", "vero-beach-fl"], ["Sebastian, FL", "sebastian-fl"],
+  ["Okeechobee, FL", "okeechobee-fl"], ["Jupiter, FL", "jupiter-fl"], ["Palm Beach Gardens, FL", "palm-beach-gardens-fl"],
+  ["Riviera Beach, FL", "riviera-beach-fl"], ["West Palm Beach, FL", "west-palm-beach-fl"], ["Wellington, FL", "wellington-fl"],
+  ["Delray Beach, FL", "delray-beach-fl"], ["Boca Raton, FL", "boca-raton-fl"],
+];
 
 const $ = (id) => document.getElementById(id);
-const describe = (code) => CODES[code] || ["Unknown", "cloud", "cloud", "clear"];
-const icon = (code, isDay) => `<svg class="wx" viewBox="0 0 64 64">${ICONS[describe(code)[isDay ? 1 : 2]]}</svg>`;
-const round = (n) => `${Math.round(n)}°`;
-const compass = (deg) => DIRECTIONS[Math.round(deg / 45) % 8];
-const rand = (max) => Math.random() * max;
-const particles = (count, style) => Array.from({ length: count }, () => `<i style="${style()}"></i>`).join("");
+const link = (path) => `href="${SITE}${path}" target="_blank" rel="noopener"`;
+const chevron = '<svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
 
-// Open-Meteo returns local times like "2026-10-29T14:00", so read the clock straight from the string
-const minutes = (time) => Number(time.slice(11, 13)) * 60 + Number(time.slice(14, 16));
-function clock(mins, short = false) {
-  const h = Math.floor(mins / 60) % 24;
-  const m = String(mins % 60).padStart(2, "0");
-  const ampm = h < 12 ? "AM" : "PM";
-  return short ? `${h % 12 || 12}<small>${ampm}</small>` : `${h % 12 || 12}:${m} ${ampm}`;
-}
+// ---------- Services ----------
 
-$("stars").innerHTML = particles(80, () =>
-  `left:${rand(100)}%;top:${rand(65)}%;--size:${1 + rand(2)}px;animation-delay:-${rand(4)}s`);
+$("service-list").innerHTML = SERVICES.map((group, i) => `
+  <details class="service"${i === 0 ? " open" : ""}>
+    <summary>
+      <span class="num">0${i + 1}</span>
+      <div><h3>${group.name}</h3><p>${group.blurb}</p></div>
+      ${chevron}
+    </summary>
+    <div class="body">
+      <ul>${group.items.map((s) => `<li><a ${link(s.url)}><b>${s.name}</b><span>${s.desc}</span></a></li>`).join("")}</ul>
+      <a class="more" ${link(group.url)}>More about ${group.name.toLowerCase()} →</a>
+    </div>
+  </details>`).join("");
 
-function setScene(scene, isDay, golden) {
-  document.body.className = `${scene} ${isDay ? "day" : "night"}${golden ? " golden" : ""}`;
+// ---------- Pavement checkup ----------
 
-  if (scene === "rain" || scene === "storm") {
-    $("precip").innerHTML = particles(scene === "storm" ? 130 : 90, () =>
-      `left:${rand(100)}%;animation-duration:${0.5 + rand(0.4)}s;animation-delay:-${rand(1)}s;opacity:${0.4 + rand(0.6)}`);
-  } else if (scene === "snow") {
-    $("precip").innerHTML = particles(70, () =>
-      `left:${rand(100)}%;--size:${3 + rand(4)}px;animation-duration:${6 + rand(6)}s;animation-delay:-${rand(12)}s`);
-  } else {
-    $("precip").innerHTML = "";
-  }
-}
+$("symptoms").innerHTML = SYMPTOMS.map((s, i) =>
+  `<button type="button" class="symptom" data-i="${i}" aria-pressed="false"><svg viewBox="0 0 24 24">${s.icon}</svg>${s.label}</button>`).join("");
 
-async function getJSON(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  return res.json();
-}
+let recommended = [];
+$("symptoms").addEventListener("click", (e) => {
+  const btn = e.target.closest(".symptom");
+  if (!btn) return;
+  btn.setAttribute("aria-pressed", btn.getAttribute("aria-pressed") === "true" ? "false" : "true");
 
-async function loadWeather(place) {
-  $("place").textContent = place.name;
-  $("condition").textContent = "Loading…";
-
-  const forecast = new URLSearchParams({
-    latitude: place.latitude,
-    longitude: place.longitude,
-    current: "temperature_2m,apparent_temperature,relative_humidity_2m,dew_point_2m,weather_code,wind_speed_10m,wind_direction_10m,precipitation,is_day",
-    hourly: "temperature_2m,weather_code,is_day,precipitation_probability,uv_index",
-    daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,sunrise,sunset,uv_index_max",
-    temperature_unit: "fahrenheit",
-    wind_speed_unit: "mph",
-    precipitation_unit: "inch",
-    timezone: "auto",
-    forecast_days: 7,
-  });
-
-  const sea = place.marine || place;
-  const marine = new URLSearchParams({
-    latitude: sea.latitude,
-    longitude: sea.longitude,
-    current: "wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_period,sea_surface_temperature",
-    timezone: "auto",
-  });
-
-  try {
-    // Ocean data is a bonus: if it fails (or the place is inland) the rest still loads
-    const [weather, ocean] = await Promise.all([
-      getJSON(`https://api.open-meteo.com/v1/forecast?${forecast}`),
-      getJSON(`https://marine-api.open-meteo.com/v1/marine?${marine}`).catch(() => null),
-    ]);
-    render(weather);
-    renderMarine(ocean, weather.current);
-  } catch (err) {
-    $("condition").textContent = "Couldn't load weather. Try again later.";
-    console.error(err);
-  }
-}
-
-function render({ current, hourly, daily }) {
-  const now = minutes(current.time);
-  const rise = minutes(daily.sunrise[0]);
-  const set = minutes(daily.sunset[0]);
-  const [desc, , , scene] = describe(current.weather_code);
-  const golden = current.is_day && scene !== "rain" && scene !== "storm" && (now - rise < 60 || set - now < 60);
-  setScene(scene, current.is_day, golden);
-
-  const date = new Date(`${current.time.slice(0, 10)}T12:00`);
-  $("date").textContent = date.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
-  $("temp").textContent = round(current.temperature_2m);
-  $("condition").textContent = desc;
-  $("hilo").textContent = `H:${round(daily.temperature_2m_max[0])}  L:${round(daily.temperature_2m_min[0])}`;
-
-  // Feels like
-  const diff = current.apparent_temperature - current.temperature_2m;
-  $("feels").innerHTML = `${Math.round(current.apparent_temperature)}°<small>F</small>`;
-  $("feels-note").textContent = diff > 2 ? "Warmer than actual" : diff < -2 ? "Cooler than actual" : "Similar to actual";
-
-  // Humidity
-  $("humidity").textContent = `${current.relative_humidity_2m}%`;
-  $("dew").textContent = `Dew point ${round(current.dew_point_2m)}`;
-
-  // Wind: the arrow points the way the wind is blowing toward
-  const deg = current.wind_direction_10m;
-  $("wind").innerHTML = `${Math.round(current.wind_speed_10m)}<small>mph</small>`;
-  $("wind-dir").textContent = `From the ${compass(deg)} (${Math.round(deg)}°)`;
-  $("arrow").style.transform = `rotate(${deg + 180}deg)`;
-
-  // Precipitation
-  $("precip-now").innerHTML = `${current.precipitation}<small>in</small>`;
-  $("precip-today").textContent = `${daily.precipitation_sum[0]}" expected today`;
-
-  // Next 24 hours starting from the current hour
-  const start = hourly.time.findIndex((t) => t >= current.time.slice(0, 13));
-  $("hourly").innerHTML = hourly.time.slice(start, start + 24).map((t, i) => {
-    const j = start + i;
-    const pop = hourly.precipitation_probability[j];
-    return `<div class="hour${i === 0 ? " now" : ""}">
-      <span class="time">${i === 0 ? "Now" : clock(minutes(t), true)}</span>
-      ${icon(hourly.weather_code[j], hourly.is_day[j])}
-      <span class="pop">${pop >= 20 ? `${pop}%` : ""}</span>
-      <span class="deg">${round(hourly.temperature_2m[j])}</span>
-    </div>`;
-  }).join("");
-
-  renderSun(now, rise, set, hourly.uv_index[start], daily.uv_index_max[0]);
-
-  // Temperature bars are scaled across the whole week
-  const weekLo = Math.min(...daily.temperature_2m_min);
-  const weekHi = Math.max(...daily.temperature_2m_max);
-  const pct = (n) => ((n - weekLo) / (weekHi - weekLo || 1)) * 100;
-
-  $("daily").innerHTML = daily.time.map((t, i) => {
-    const lo = daily.temperature_2m_min[i];
-    const hi = daily.temperature_2m_max[i];
-    const name = i === 0 ? "Today" : new Date(`${t}T12:00`).toLocaleDateString([], { weekday: "short" });
-    return `<div class="day-row">
-      <span>${name}</span>
-      ${icon(daily.weather_code[i], true)}
-      <div class="range">
-        <span class="lo">${round(lo)}</span>
-        <div class="bar"><span style="left:${pct(lo)}%;right:${100 - pct(hi)}%"></span></div>
-        <span>${round(hi)}</span>
-      </div>
-    </div>`;
-  }).join("");
-}
-
-function renderSun(now, rise, set, uv, uvMax) {
-  $("sunrise").textContent = clock(rise);
-  $("sunset").textContent = clock(set);
-  $("golden").textContent = clock(set - 60);
-
-  // Place the sun along the arc between sunrise (left) and sunset (right)
-  const up = now > rise && now < set;
-  const f = Math.min(Math.max((now - rise) / (set - rise), 0), 1);
-  const angle = Math.PI * (1 - f);
-  $("sun-dot").setAttribute("cx", 150 + 130 * Math.cos(angle));
-  $("sun-dot").setAttribute("cy", 104 - 86 * Math.sin(angle));
-  $("sun-dot").style.opacity = up ? 1 : 0;
-  $("arc-done").style.strokeDasharray = `${f * 100} 100`;
-  $("arc-done").style.opacity = up ? 1 : 0;
-
-  // UV index with sun-safety tips
-  uv = up ? Math.round(uv ?? 0) : 0;
-  const [level, tip] =
-    uv >= 11 ? ["Extreme", "Avoid the sun 10 AM–4 PM. Sunscreen, hat and shade are a must; reapply every 2 hours."] :
-    uv >= 8 ? ["Very high", "Seek shade midday and reapply sunscreen every 2 hours, or right after swimming."] :
-    uv >= 6 ? ["High", "Wear SPF 30+, a hat and sunglasses. Reapply every 2 hours."] :
-    uv >= 3 ? ["Moderate", "Wear sunscreen if you're out for a while. Reapply every 2 hours."] :
-    ["Low", up ? "No protection needed right now." : `The sun is down. Today's peak UV was ${Math.round(uvMax)}.`];
-  $("uv").textContent = uv;
-  $("uv-level").textContent = level;
-  $("uv-marker").style.left = `${Math.min(uv / 11, 1) * 100}%`;
-  $("uv-tip").textContent = tip;
-}
-
-function renderMarine(ocean, weather) {
-  const c = ocean?.current;
-  // Inland places have no ocean data
-  if (!c || c.wave_height == null) return ($("marine").hidden = true);
-  $("marine").hidden = false;
-
-  const units = ocean.current_units || {};
-  const ft = (v, unit) => (unit === "m" ? v * 3.281 : v);
-  const waves = ft(c.wave_height, units.wave_height);
-  const swell = ft(c.swell_wave_height ?? 0, units.swell_wave_height);
-  const water = units.sea_surface_temperature?.includes("C") ? c.sea_surface_temperature * 9 / 5 + 32 : c.sea_surface_temperature;
-
-  $("waves").innerHTML = `${waves.toFixed(1)}<small>ft</small>`;
-  $("wave-info").textContent = `${Math.round(c.wave_period)}s from ${compass(c.wave_direction)}`;
-  $("water").textContent = water == null ? "--" : round(water);
-  $("swell").innerHTML = `${swell.toFixed(1)}<small>ft</small>`;
-  $("swell-info").textContent = c.swell_wave_period ? `${Math.round(c.swell_wave_period)}s period` : "";
-
-  // Rough guide for small boats, based on wave height and wind speed
-  const wind = weather.wind_speed_10m;
-  const [cls, text] =
-    waves < 2 && wind < 12 ? ["calm", "<span><b>Calm</b> · Good for boating, paddling and swimming</span>"] :
-    waves < 4 && wind < 18 ? ["moderate", "<span><b>Choppy</b> · OK for bigger boats, use caution on small craft</span>"] :
-    ["rough", "<span><b>Rough</b> · Small craft should stay in; watch for rip currents</span>"];
-  $("boating").className = `boating ${cls}`;
-  $("boating").innerHTML = text;
-}
-
-// City search using the Open-Meteo geocoding API
-let searchTimer;
-$("query").addEventListener("input", (e) => {
-  clearTimeout(searchTimer);
-  const q = e.target.value.trim();
-  if (q.length < 2) return ($("results").hidden = true);
-  searchTimer = setTimeout(() => searchCities(q), 300);
+  const picked = [...document.querySelectorAll('.symptom[aria-pressed="true"]')].map((b) => SYMPTOMS[b.dataset.i]);
+  recommended = [...new Set(picked.flatMap((s) => s.services))].map((id) => SERVICE_BY_ID[id]);
+  $("advice").hidden = recommended.length === 0;
+  $("advice-list").innerHTML = recommended.map((s) => `<li><a ${link(s.url)}>${s.name}</a><p>${s.desc}</p></li>`).join("");
+  $("advice").dataset.symptoms = picked.map((s) => s.label).join(", ");
 });
 
-async function searchCities(q) {
-  try {
-    const { results = [] } = await getJSON(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5`);
-    const list = $("results");
-    list.innerHTML = "";
-    results.forEach((r) => {
-      const li = document.createElement("li");
-      li.innerHTML = `${r.name} <small>${[r.admin1, r.country].filter(Boolean).join(", ")}</small>`;
-      li.addEventListener("click", () => selectPlace(r));
-      list.appendChild(li);
-    });
-    list.hidden = results.length === 0;
-  } catch (err) {
-    console.error(err);
-  }
-}
+// Carry the checkup results into the estimate form
+$("advice-cta").addEventListener("click", () => {
+  if (!recommended.length) return;
+  $("service-select").value = recommended[0].form;
+  $("message").value = `Pavement checkup: ${$("advice").dataset.symptoms}.\nInterested in: ${recommended.map((s) => s.name).join(", ")}.`;
+});
 
-function selectPlace(place) {
-  $("query").value = "";
-  $("results").hidden = true;
-  loadWeather(place);
-}
+// ---------- Reviews ----------
 
-$("search").addEventListener("submit", (e) => {
+$("review-list").innerHTML = REVIEWS.map((r) => `
+  <article class="review">
+    <p>“${r.text}”</p>
+    <footer><span class="avatar">${r.name[0]}</span><span>${r.name}<small>${r.role}</small></span></footer>
+  </article>`).join("");
+
+// ---------- Areas ----------
+
+$("area-list").innerHTML = AREAS.map(([name, slug]) => slug === "/"
+  ? `<a class="hq" ${link("/")}>${name} · HQ</a>`
+  : `<a ${link(`/areas-we-serve/${slug}/`)}>${name}</a>`).join("");
+
+// ---------- Estimate form (submitted through Netlify Forms) ----------
+
+$("estimate-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  $("results").querySelector("li")?.click();
+  const form = e.target;
+  const status = $("form-status");
+  status.className = "form-status";
+  status.textContent = "Sending…";
+  try {
+    const res = await fetch("/", { method: "POST", body: new FormData(form) });
+    if (!res.ok) throw new Error(res.statusText);
+    form.reset();
+    status.className = "form-status ok";
+    status.textContent = "Thanks! We received your request and will contact you shortly.";
+  } catch (err) {
+    status.className = "form-status err";
+    status.textContent = "Sorry, that didn't go through. Please call us at 772.888.2840.";
+    console.error(err);
+  }
 });
 
-document.addEventListener("click", (e) => {
-  if (!$("search").contains(e.target)) $("results").hidden = true;
-});
+// ---------- Highlight the current section in the tab bar ----------
 
-loadWeather(DEFAULT_PLACE);
+const tabs = [...document.querySelectorAll(".tabs a")];
+const sections = tabs.map((a) => document.querySelector(a.getAttribute("href")));
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach((entry) => {
+    if (entry.isIntersecting) tabs.forEach((a) => a.classList.toggle("active", a.getAttribute("href") === `#${entry.target.id}`));
+  });
+}, { rootMargin: "-45% 0px -50% 0px" });
+sections.forEach((s) => observer.observe(s));
+
+$("year").textContent = new Date().getFullYear();

@@ -1,22 +1,23 @@
-# Tidecast
+# Asphalt Care Services app
 
-A coastal weather app for South Florida, powered by the free [Open-Meteo](https://open-meteo.com/) API (no API key needed). It opens to Hobe Sound, Florida, and you can search for any city.
+A mobile-friendly web app for [Asphalt Care Services, LLC](https://www.asphaltcareservices.com/) in Stuart, FL, built from the content on their website.
 
-- Current conditions, a 24-hour forecast and a 7-day forecast
-- Beach & boating: wave height, water temperature, swell and a boating rating (hidden for inland cities)
-- Sun & UV: sunrise, sunset, golden hour and the UV index with sunscreen tips
-- Animated backgrounds that follow the weather and time of day, including a golden-hour sunset sky and ocean waves
+- Tap-to-call, email and directions
+- Services grouped into paving, repair and maintenance, linking to the full pages on the website
+- Pavement checkup: tap what you're seeing (cracks, potholes, faded lines…) to get recommended services, then send them straight into an estimate request
+- Free estimate form with optional photo uploads, handled by Netlify Forms
+- Client testimonials and service areas
 
 ## Files
 
-- `index.html`: page structure
-- `style.css`: styling and background animations
-- `app.js`: fetches and renders the weather, ocean and sun data
-
-## Run locally
-
-Open `index.html` in a browser.
+- `index.html`: page structure and the estimate form
+- `style.css`: styling
+- `app.js`: services, checkup, reviews and areas data, plus form handling
 
 ## Deploy to Netlify
 
-There is no build step. Drag this folder into Netlify, or connect the repo with the build command left blank and the publish directory set to the repository root.
+There is no build step. Deploy this branch with the build command left blank and the publish directory set to the repository root.
+
+Estimate requests show up in the Netlify dashboard under **Forms → estimate**. To get them by email, add a form notification there (Site configuration → Notifications → Emails and webhooks).
+
+The logo and app icon load from asphaltcareservices.com. If the logo can't load, the app shows the company name as text instead.
