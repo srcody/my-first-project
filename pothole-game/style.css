@@ -96,6 +96,20 @@ canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
 }
 .card h1 { font-size: 26px; margin-bottom: 10px; }
 .card p { color: #ccc; line-height: 1.45; margin-bottom: 18px; }
+.summary:empty { display: none; }
+.summary {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 6px 14px;
+  text-align: left;
+  margin: -4px 0 18px;
+  font-size: 15px;
+}
+.summary .total { border-top: 1px solid #444; padding-top: 6px; font-weight: 800; }
+.summary .pts { color: #f2b705; text-align: right; }
+.stars { font-size: 30px; letter-spacing: 4px; color: #f2b705; margin: -4px 0 12px; }
+.stars .off { color: #4a4d52; }
+.new-best { color: #7ee07e; font-weight: 700; margin: -8px 0 14px; }
 .card button {
   background: #f2b705;
   color: #1d1f22;
