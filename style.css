@@ -1,23 +1,31 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+:root {
+  --teal: #38c6d9;
+  --sand: #ffd58a;
+  --coral: #ff8a65;
+  --sun: #ffc24b;
+}
+
 body {
   min-height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  font-family: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: #fff;
-  background: #1d3b66;
+  background: #0b3550;
   -webkit-font-smoothing: antialiased;
 }
 
 /* ---------- Sky colors by weather + time of day ---------- */
 
-body                { --sky: linear-gradient(180deg, #1f6fd6 0%, #4fa3f0 55%, #8fd0f7 100%); }
-body.clear.night    { --sky: linear-gradient(180deg, #050816 0%, #0f1a3a 55%, #24305a 100%); }
-body.cloudy.day     { --sky: linear-gradient(180deg, #56697f 0%, #8496ab 55%, #b3c1d1 100%); }
-body.cloudy.night   { --sky: linear-gradient(180deg, #0b0f17 0%, #1b2330 55%, #2f3a4a 100%); }
-body.rain.day       { --sky: linear-gradient(180deg, #2f3b4a 0%, #4d5d70 55%, #74859a 100%); }
-body.rain.night     { --sky: linear-gradient(180deg, #06090e 0%, #131b26 55%, #243142 100%); }
-body.storm.day      { --sky: linear-gradient(180deg, #14171f 0%, #262b38 55%, #3d4455 100%); }
-body.storm.night    { --sky: linear-gradient(180deg, #030406 0%, #0d1018 55%, #1c2130 100%); }
+body                { --sky: linear-gradient(180deg, #0f7fc9 0%, #2bb3d6 55%, #9fe3e0 100%); }
+body.golden         { --sky: linear-gradient(180deg, #34508f 0%, #b9678f 40%, #ff9a6b 72%, #ffd59a 100%); }
+body.clear.night    { --sky: linear-gradient(180deg, #030b18 0%, #0a2540 55%, #11475a 100%); }
+body.cloudy.day     { --sky: linear-gradient(180deg, #4b6a80 0%, #7896a6 55%, #b3cbd0 100%); }
+body.cloudy.night   { --sky: linear-gradient(180deg, #060e17 0%, #12232f 55%, #1f3a46 100%); }
+body.rain.day       { --sky: linear-gradient(180deg, #283a48 0%, #435e6c 55%, #6b8a92 100%); }
+body.rain.night     { --sky: linear-gradient(180deg, #040a10 0%, #0d1b25 55%, #1a323b 100%); }
+body.storm.day      { --sky: linear-gradient(180deg, #11161c 0%, #222c35 55%, #36474f 100%); }
+body.storm.night    { --sky: linear-gradient(180deg, #020405 0%, #0b1116 55%, #18252b 100%); }
 body.snow.day       { --sky: linear-gradient(180deg, #6f8db8 0%, #a7bcd9 55%, #dbe5f2 100%); }
 body.snow.night     { --sky: linear-gradient(180deg, #0f1726 0%, #24324a 55%, #42526d 100%); }
 
@@ -45,16 +53,23 @@ body.snow.night     { --sky: linear-gradient(180deg, #0f1726 0%, #24324a 55%, #4
 }
 .clear.day .sun { opacity: 1; }
 .cloudy.day .sun { opacity: 0.4; }
+/* At golden hour the sun sits low and orange, just above the waves */
+.golden .sun {
+  top: auto;
+  bottom: -60px;
+  right: -60px;
+  background: radial-gradient(circle, #fff0c2 0%, #ffb35c 25%, rgba(255, 120, 80, 0.4) 48%, transparent 70%);
+}
 
 .moon {
   position: absolute;
-  top: 60px;
-  right: 40px;
-  width: 70px;
-  height: 70px;
+  top: 150px;
+  right: 24px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
-  background: #f3f1e6;
-  box-shadow: 0 0 40px 10px rgba(243, 241, 230, 0.25), inset -12px -6px 0 rgba(0, 0, 0, 0.08);
+  background: #f4ecd2;
+  box-shadow: 0 0 40px 10px rgba(244, 236, 210, 0.25), inset -12px -6px 0 rgba(0, 0, 0, 0.08);
 }
 .clear.night .moon { opacity: 0.95; }
 .cloudy.night .moon { opacity: 0.35; }
@@ -84,7 +99,7 @@ body.snow.night     { --sky: linear-gradient(180deg, #0f1726 0%, #24324a 55%, #4
 .clouds span:nth-child(2) { top: 22%; animation-duration: 95s; animation-delay: -60s; }
 .clouds span:nth-child(3) { top: 44%; animation-duration: 120s; animation-delay: -30s; }
 body { --cloud: rgba(255, 255, 255, 0.5); }
-.night, .rain, .storm { --cloud: rgba(150, 160, 180, 0.28); }
+.night, .rain, .storm { --cloud: rgba(150, 165, 175, 0.28); }
 .cloudy .clouds, .rain .clouds, .storm .clouds, .snow .clouds { opacity: 1; }
 
 .precip i {
@@ -92,7 +107,7 @@ body { --cloud: rgba(255, 255, 255, 0.5); }
   top: -80px;
   width: 1.5px;
   height: 70px;
-  background: linear-gradient(transparent, rgba(200, 220, 255, 0.6));
+  background: linear-gradient(transparent, rgba(200, 230, 255, 0.6));
   animation: fall linear infinite;
 }
 .snow .precip i {
@@ -113,12 +128,31 @@ body { --cloud: rgba(255, 255, 255, 0.5); }
   fill: #fff;
   filter: drop-shadow(0 0 16px #b9c8ff) drop-shadow(0 0 40px #8ea6ff);
 }
-.storm .flash, .storm .bolt { animation: lightning 7s infinite; }
+.storm .bolt { animation: lightning 7s infinite; }
+.storm .flash { animation: flash 7s infinite; }
+
+/* Ocean waves along the bottom: each layer is a tileable wave scrolled sideways */
+.waves { position: absolute; left: 0; right: 0; bottom: 0; height: 110px; opacity: 1; }
+.waves span {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 200%;
+  height: 100%;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 120' preserveAspectRatio='none'%3E%3Cpath d='M0 40Q100 0 200 40T400 40T600 40T800 40V120H0Z' fill='%23fff'/%3E%3C/svg%3E") repeat-x;
+  background-size: 50% 100%;
+  animation: wave 14s linear infinite;
+}
+.waves span:nth-child(1) { height: 100%; opacity: 0.12; animation-duration: 18s; }
+.waves span:nth-child(2) { height: 75%;  opacity: 0.16; animation-duration: 12s; animation-direction: reverse; }
+.waves span:nth-child(3) { height: 50%;  opacity: 0.22; animation-duration: 9s; }
+.night .waves, .storm .waves { opacity: 0.5; }
 
 @keyframes pulse   { 50% { transform: scale(1.06); } }
 @keyframes twinkle { 50% { opacity: 0.2; } }
 @keyframes drift   { from { transform: translateX(-80vw); } to { transform: translateX(110vw); } }
 @keyframes fall    { to { transform: translateY(110vh); } }
+@keyframes wave    { to { transform: translateX(-50%); } }
 @keyframes snowfall {
   50%  { transform: translate(20px, 55vh); }
   100% { transform: translate(-10px, 110vh); }
@@ -128,7 +162,6 @@ body { --cloud: rgba(255, 255, 255, 0.5); }
   87% { opacity: 0.75; }
   90% { opacity: 0.5; }
 }
-.storm .flash { animation-name: flash; }
 @keyframes flash {
   0%, 86%, 89%, 92%, 100% { opacity: 0; }
   87% { opacity: 0.35; }
@@ -136,7 +169,7 @@ body { --cloud: rgba(255, 255, 255, 0.5); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scene *, .scene *::before { animation: none !important; }
+  .scene * { animation: none !important; }
   .flash, .bolt { display: none; }
 }
 
@@ -145,24 +178,34 @@ body { --cloud: rgba(255, 255, 255, 0.5); }
 .app {
   max-width: 560px;
   margin: 0 auto;
-  padding: 24px 16px 40px;
+  padding: 20px 16px 120px;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.brand svg { width: 28px; height: 28px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); border-radius: 8px; }
+
 .glass {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.07));
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.07));
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 26px;
   backdrop-filter: blur(28px) saturate(170%);
   -webkit-backdrop-filter: blur(28px) saturate(170%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 10px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 10px 40px rgba(0, 30, 50, 0.18);
 }
 
 svg { stroke-linecap: round; stroke-linejoin: round; }
 
-.search { position: relative; display: flex; align-items: center; border-radius: 16px; z-index: 2; }
+.search { position: relative; display: flex; align-items: center; border-radius: 18px; z-index: 2; }
 .search-icon { width: 18px; margin-left: 14px; fill: none; stroke: rgba(255, 255, 255, 0.75); stroke-width: 2.2; }
 .search input {
   flex: 1;
@@ -174,7 +217,7 @@ svg { stroke-linecap: round; stroke-linejoin: round; }
   border: none;
   outline: none;
 }
-.search input::placeholder { color: rgba(255, 255, 255, 0.65); }
+.search input::placeholder { color: rgba(255, 255, 255, 0.7); }
 
 .results {
   position: absolute;
@@ -183,19 +226,19 @@ svg { stroke-linecap: round; stroke-linejoin: round; }
   right: 0;
   list-style: none;
   overflow: hidden;
-  border-radius: 16px;
-  background: rgba(30, 40, 60, 0.6);
+  border-radius: 18px;
+  background: rgba(10, 45, 65, 0.65);
 }
 .results li { padding: 12px 16px; cursor: pointer; }
 .results li + li { border-top: 1px solid rgba(255, 255, 255, 0.12); }
 .results li:hover { background: rgba(255, 255, 255, 0.12); }
 .results small { opacity: 0.65; }
 
-.current { text-align: center; padding: 28px 0 12px; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.2); }
-.current h1 { font-size: 32px; font-weight: 500; letter-spacing: -0.01em; }
-.date { font-size: 14px; opacity: 0.75; margin-top: 2px; }
-.temp { font-size: 110px; font-weight: 200; line-height: 1; letter-spacing: -0.04em; margin: 8px 0 4px 28px; }
-.condition { font-size: 20px; font-weight: 500; }
+.current { text-align: center; padding: 20px 0 12px; text-shadow: 0 2px 12px rgba(0, 30, 50, 0.25); }
+.current h1 { font-size: 34px; font-weight: 500; }
+.date { font-size: 15px; opacity: 0.8; margin-top: 2px; }
+.temp { font-size: 112px; font-weight: 200; line-height: 1; letter-spacing: -0.03em; margin: 8px 0 4px 28px; }
+.condition { font-size: 21px; font-weight: 500; }
 .hilo { font-size: 17px; opacity: 0.85; margin-top: 4px; }
 
 .card { padding: 16px 18px; }
@@ -207,37 +250,96 @@ h2 {
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  opacity: 0.65;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
   padding-bottom: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 h2 svg { width: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; }
 
+.label { display: block; font-size: 12px; font-weight: 500; opacity: 0.8; }
+.value { font-size: 32px; font-weight: 300; line-height: 1.1; }
+.value small { font-size: 15px; font-weight: 400; opacity: 0.8; margin-left: 2px; }
+.note { font-size: 13px; opacity: 0.75; margin-top: auto; padding-top: 6px; }
+
+/* Illustrated weather icons */
+.wx { display: block; filter: drop-shadow(0 2px 3px rgba(0, 30, 50, 0.2)); }
+
 /* Hourly */
-.hourly {
-  display: flex;
-  overflow-x: auto;
-  scrollbar-width: none;
-  margin: 0 -8px;
-}
+.hourly { display: flex; overflow-x: auto; scrollbar-width: none; margin: 0 -8px; }
 .hourly::-webkit-scrollbar { display: none; }
 .hour {
   flex: 0 0 58px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 6px 0;
-  border-radius: 14px;
+  gap: 4px;
+  padding: 8px 0;
+  border-radius: 16px;
 }
-.hour.now { background: rgba(255, 255, 255, 0.14); }
+.hour.now { background: rgba(255, 255, 255, 0.15); }
 .hour .time { font-size: 14px; font-weight: 500; white-space: nowrap; }
 .hour .time small { font-size: 10px; font-weight: 600; margin-left: 1px; opacity: 0.8; }
-.hour .icon { font-size: 24px; height: 30px; line-height: 30px; }
-.hour .pop { font-size: 11px; font-weight: 700; color: #e3f3ff; height: 13px; text-shadow: 0 0 6px rgba(0, 60, 140, 0.45); }
+.hour .wx { width: 34px; height: 34px; }
+.hour .pop { font-size: 11px; font-weight: 700; color: #e3f6ff; height: 13px; text-shadow: 0 0 6px rgba(0, 60, 100, 0.5); }
 .hour .deg { font-size: 16px; font-weight: 500; }
+
+/* Beach & boating */
+.marine-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.marine-grid > div { display: flex; flex-direction: column; }
+.marine-grid .value { font-size: 28px; margin-top: 2px; }
+.boating {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(0, 30, 50, 0.18);
+  font-size: 14px;
+}
+.boating::before {
+  content: "";
+  flex: 0 0 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--dot);
+  box-shadow: 0 0 10px var(--dot);
+}
+.boating b { font-weight: 600; }
+.boating.calm     { --dot: #5ee6a8; }
+.boating.moderate { --dot: #ffd166; }
+.boating.rough    { --dot: #ff6b6b; }
+
+/* Sun & UV */
+.arc { display: block; width: 100%; max-width: 360px; margin: 0 auto; overflow: visible; }
+.arc-track { fill: none; stroke: rgba(255, 255, 255, 0.3); stroke-width: 2; stroke-dasharray: 1.2 1.6; }
+.arc-done { fill: none; stroke: url(#arc-grad); stroke-width: 3.5; }
+.horizon { stroke: rgba(255, 255, 255, 0.35); stroke-width: 1.5; }
+.sun-dot { fill: #fff3c4; filter: drop-shadow(0 0 8px var(--sun)) drop-shadow(0 0 16px var(--coral)); }
+.sun-times { display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; margin-top: 6px; }
+.sun-times b { font-size: 16px; font-weight: 500; }
+.uv { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.15); }
+.uv-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 15px; }
+.uv-head b { font-size: 24px; font-weight: 500; }
+.uv-bar {
+  position: relative;
+  height: 6px;
+  margin-top: 8px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #5ee6a8, #ffd166 30%, #ff9f43 55%, #ff6b6b 75%, #b57bff);
+}
+.uv-bar i {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid rgba(0, 30, 50, 0.4);
+  transform: translate(-50%, -50%);
+}
 
 /* Daily */
 .day-row {
@@ -245,30 +347,26 @@ h2 svg { width: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; }
   grid-template-columns: 58px 32px 1fr;
   align-items: center;
   gap: 12px;
-  padding: 9px 0;
+  padding: 8px 0;
   font-size: 17px;
 }
 .day-row + .day-row { border-top: 1px solid rgba(255, 255, 255, 0.12); }
 .day-row > span:first-child { font-weight: 500; }
-.day-row .icon { font-size: 22px; text-align: center; }
+.day-row .wx { width: 30px; height: 30px; }
 .range { display: grid; grid-template-columns: 38px 1fr 38px; align-items: center; gap: 10px; }
-.range .lo { opacity: 0.55; text-align: right; }
-.bar { height: 5px; border-radius: 3px; background: rgba(0, 0, 0, 0.2); position: relative; }
+.range .lo { opacity: 0.6; text-align: right; }
+.bar { height: 5px; border-radius: 3px; background: rgba(0, 30, 50, 0.22); position: relative; }
 .bar span {
   position: absolute;
   top: 0;
   bottom: 0;
   border-radius: 3px;
-  background: linear-gradient(90deg, #7cc8ff, #ffd36b, #ff9a4a);
+  background: linear-gradient(90deg, var(--teal), var(--sand), var(--coral));
 }
 
 /* Detail tiles */
 .details { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .tile { padding: 16px; min-height: 140px; display: flex; flex-direction: column; }
-.tile h2 { margin-bottom: 12px; }
-.value { font-size: 32px; font-weight: 300; line-height: 1.1; }
-.value small { font-size: 16px; font-weight: 400; opacity: 0.8; margin-left: 2px; }
-.note { font-size: 13px; opacity: 0.75; margin-top: auto; padding-top: 8px; }
 
 .wind { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: 1; }
 .compass {
@@ -283,5 +381,5 @@ h2 svg { width: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; }
 .compass .n { position: absolute; top: 2px; font-size: 9px; font-weight: 700; opacity: 0.8; }
 .arrow { width: 28px; fill: #fff; transition: transform 0.6s ease; }
 
-footer { text-align: center; font-size: 13px; opacity: 0.65; padding-top: 4px; }
+footer { text-align: center; font-size: 13px; opacity: 0.7; padding-top: 4px; }
 footer a { color: inherit; }
