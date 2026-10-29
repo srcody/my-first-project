@@ -6,15 +6,28 @@
   <title>Weather</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="clear day">
+  <!-- Animated background: which layers show depends on the weather and time of day -->
+  <div class="scene" aria-hidden="true">
+    <div class="sun"></div>
+    <div class="moon"></div>
+    <div id="stars" class="stars"></div>
+    <div class="clouds"><span></span><span></span><span></span></div>
+    <div id="precip" class="precip"></div>
+    <div class="flash"></div>
+    <svg class="bolt" viewBox="0 0 48 80"><polygon points="30,0 6,46 22,46 12,80 44,30 27,30 40,0"/></svg>
+  </div>
+
   <main class="app">
     <form id="search" class="glass search" autocomplete="off">
+      <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
       <input id="query" type="search" placeholder="Search for a city" aria-label="Search for a city">
       <ul id="results" class="glass results" hidden></ul>
     </form>
 
     <section class="current">
       <h1 id="place">Boca Raton</h1>
+      <div id="date" class="date"></div>
       <div id="temp" class="temp">--°</div>
       <div id="condition" class="condition">Loading…</div>
       <div id="hilo" class="hilo"></div>
@@ -31,10 +44,34 @@
     </section>
 
     <section class="details">
-      <div class="glass tile"><h2>Feels like</h2><p id="feels">--</p></div>
-      <div class="glass tile"><h2>Humidity</h2><p id="humidity">--</p></div>
-      <div class="glass tile"><h2>Wind</h2><p id="wind">--</p></div>
-      <div class="glass tile"><h2>Precipitation</h2><p id="precip">--</p></div>
+      <div class="glass tile">
+        <h2><svg viewBox="0 0 24 24"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0Z"/></svg>Feels like</h2>
+        <p id="feels" class="value">--</p>
+        <p id="feels-note" class="note"></p>
+      </div>
+      <div class="glass tile">
+        <h2><svg viewBox="0 0 24 24"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z"/></svg>Humidity</h2>
+        <p id="humidity" class="value">--</p>
+        <p id="dew" class="note"></p>
+      </div>
+      <div class="glass tile">
+        <h2><svg viewBox="0 0 24 24"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg>Wind</h2>
+        <div class="wind">
+          <div>
+            <p id="wind" class="value">--</p>
+            <p id="wind-dir" class="note"></p>
+          </div>
+          <div class="compass">
+            <span class="n">N</span>
+            <svg id="arrow" class="arrow" viewBox="0 0 24 24"><path d="M12 3 7 13h3.5v8h3v-8H17Z"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="glass tile">
+        <h2><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 18 0ZM12 12v7a2 2 0 0 1-4 0"/></svg>Precipitation</h2>
+        <p id="precip-now" class="value">--</p>
+        <p id="precip-today" class="note"></p>
+      </div>
     </section>
 
     <footer>Weather data by <a href="https://open-meteo.com/">Open-Meteo</a></footer>
