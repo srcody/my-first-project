@@ -1,4 +1,4 @@
-const DEFAULT_PLACE = { name: "Boca Raton", region: "Florida", latitude: 26.3683, longitude: -80.1289 };
+const DEFAULT_PLACE = { name: "Hobe Sound", region: "Florida", latitude: 27.0595, longitude: -80.1364 };
 
 // WMO weather codes -> [description, day icon, night icon, scene]
 const CODES = {

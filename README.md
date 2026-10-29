@@ -1,6 +1,6 @@
 # my-first-project
 
-A simple weather app with an Apple-style glassmorphic design, powered by the free [Open-Meteo](https://open-meteo.com/) API (no API key needed). The default location is Boca Raton, Florida, and you can search for any city.
+A simple weather app with an Apple-style glassmorphic design, powered by the free [Open-Meteo](https://open-meteo.com/) API (no API key needed). The default location is Hobe Sound, Florida, and you can search for any city.
 
 ## Files
 
