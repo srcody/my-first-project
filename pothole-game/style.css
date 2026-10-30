@@ -1,10 +1,21 @@
+/* Asphalt Care Services brand colours */
+:root {
+  --red: #fe130f;
+  --red-dark: #c80d0a;
+  --blue: #009cde;
+  --paper: #f7f6f6;
+  --ink: #1d1f22;
+  --panel: #26292d;
+  --panel-2: #363a3f;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
   height: 100%;
-  background: #1d1f22;
+  background: var(--ink);
   color: #f2f2f2;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: "Open Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   overflow: hidden;
   touch-action: none;
   user-select: none;
@@ -17,59 +28,80 @@ body { display: flex; flex-direction: column; }
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px 16px;
-  background: #f2b705;
-  color: #1d1f22;
+  gap: 6px 12px;
+  padding: 8px 16px;
+  background: #fff;
+  color: var(--ink);
+  border-bottom: 4px solid var(--red);
 }
 
-.brand { display: flex; flex-direction: column; line-height: 1.1; }
+.brand { display: flex; align-items: center; gap: 10px; line-height: 1.1; }
+.logo { height: 38px; width: auto; display: block; }
 .company {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
+  font-family: Poppins, sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
   text-transform: uppercase;
-  opacity: .8;
+  color: var(--red);
 }
-.title { font-weight: 800; font-size: 20px; letter-spacing: .5px; }
+.company span { color: var(--blue); }
+.title { font-family: Poppins, sans-serif; font-weight: 800; font-size: 20px; }
+.stats { display: flex; gap: 14px; font-size: 14px; color: #555; }
+.stats b { color: var(--ink); }
+
+.estimate-pill {
+  margin-left: auto;
+  background: var(--red);
+  color: #fff;
+  font-family: Poppins, sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+
 .presented {
   font-size: 12px;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: #f2b705;
+  color: var(--blue);
+  font-weight: 700;
   margin: -6px 0 10px;
 }
-.stats { display: flex; gap: 16px; font-size: 15px; }
 
 .tools {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: #2a2d31;
+  background: var(--panel);
 }
 
 .tool {
   border: 2px solid #555;
-  background: #3a3d42;
+  background: var(--panel-2);
   color: #ccc;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: 6px;
   font-size: 14px;
   font-weight: 600;
+  font-family: inherit;
 }
-.tool.active { border-color: #f2b705; color: #fff; background: #4a4535; }
+.tool.active { border-color: var(--red); color: #fff; background: #4a2a2a; }
 .tool.done { opacity: .5; text-decoration: line-through; }
 
 .progress {
   position: relative;
   flex: 1;
   height: 24px;
-  background: #3a3d42;
+  background: var(--panel-2);
   border-radius: 12px;
   overflow: hidden;
 }
-#bar { height: 100%; width: 0; background: #f2b705; transition: width .1s; }
+#bar { height: 100%; width: 0; background: var(--red); transition: width .1s; }
 #bar-label {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
@@ -78,9 +110,9 @@ body { display: flex; flex-direction: column; }
 }
 
 .meter { display: flex; align-items: center; gap: 4px; width: 96px; flex: none; }
-.meter-track { flex: 1; height: 10px; background: #3a3d42; border-radius: 5px; overflow: hidden; }
-#meter-bar { height: 100%; width: 100%; background: #7ec8e3; transition: width .1s; }
-#meter-bar.low { background: #e5533d; }
+.meter-track { flex: 1; height: 10px; background: var(--panel-2); border-radius: 5px; overflow: hidden; }
+#meter-bar { height: 100%; width: 100%; background: var(--blue); transition: width .1s; }
+#meter-bar.low { background: var(--red); }
 
 .mute {
   border: 0;
@@ -113,19 +145,21 @@ canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
   display: flex; align-items: center; justify-content: center;
   padding: 16px;
   background: rgba(0, 0, 0, .55);
+  overflow-y: auto;
 }
 .overlay.hidden { display: none; }
 
 .card {
-  max-width: 380px;
+  max-width: 390px;
+  margin: auto;
   text-align: center;
-  background: #2a2d31;
-  border-top: 6px solid #f2b705;
-  border-radius: 12px;
-  padding: 24px;
+  background: var(--panel);
+  border-top: 6px solid var(--red);
+  border-radius: 8px;
+  padding: 22px;
 }
-.card h1 { font-size: 26px; margin-bottom: 10px; }
-.ov-text { color: #ccc; line-height: 1.45; margin-bottom: 18px; }
+.card h1 { font-family: Poppins, sans-serif; font-size: 26px; margin-bottom: 10px; }
+.ov-text { color: #ccc; line-height: 1.45; margin-bottom: 16px; }
 .ov-text ul { list-style: none; text-align: left; margin-top: 10px; font-size: 14px; }
 .ov-text li { margin: 4px 0; }
 .summary:empty { display: none; }
@@ -138,26 +172,73 @@ canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
   font-size: 15px;
 }
 .summary .total { border-top: 1px solid #444; padding-top: 6px; font-weight: 800; }
-.summary .pts { color: #f2b705; text-align: right; }
-.stars { font-size: 30px; letter-spacing: 4px; color: #f2b705; margin: -4px 0 12px; }
+.summary .pts { color: var(--blue); text-align: right; font-weight: 700; }
+.stars { font-size: 30px; letter-spacing: 4px; color: #ffc21a; margin: -4px 0 12px; }
 .stars .off { color: #4a4d52; }
 .new-best { color: #7ee07e; font-weight: 700; margin: -8px 0 14px; }
-.card button {
-  background: #f2b705;
-  color: #1d1f22;
+
+.primary {
+  background: var(--red);
+  color: #fff;
   border: 0;
-  border-radius: 8px;
-  padding: 10px 28px;
+  border-radius: 5px;
+  padding: 11px 32px;
+  font-family: Poppins, sans-serif;
   font-size: 17px;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
 }
+.primary:active { background: var(--red-dark); }
+
+.secondary {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.ghost {
+  background: transparent;
+  color: #fff;
+  border: 2px solid var(--blue);
+  border-radius: 5px;
+  padding: 7px 12px;
+  font: 600 14px "Open Sans", system-ui, sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+}
+.ghost[hidden] { display: none; }
+
+.contact { margin-top: 12px; font-size: 12px; color: #aaa; line-height: 1.5; }
+.contact a { color: var(--blue); font-weight: 700; font-size: 14px; text-decoration: none; }
+
+.toast {
+  position: absolute;
+  left: 50%; top: 16px;
+  transform: translate(-50%, -20px);
+  background: #fff;
+  color: var(--ink);
+  border-left: 5px solid var(--red);
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s, transform .25s;
+  max-width: calc(100% - 32px);
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 @media (max-width: 520px) {
-  .title { font-size: 17px; }
-  .company { font-size: 10px; letter-spacing: 1px; }
+  .hud { padding: 6px 10px; }
+  .logo { height: 30px; }
+  .title { font-size: 0; }  /* logo only on phones; the start card shows the game name */
+  .title .mute { font-size: 18px; margin-left: 0; }
+  .company { font-size: 10px; letter-spacing: .5px; }
   .presented { font-size: 11px; letter-spacing: .3px; }
-  .stats { gap: 10px; font-size: 13px; }
+  .estimate-pill { font-size: 12px; padding: 5px 9px; }
+  .stats { gap: 10px; font-size: 12.5px; width: 100%; }
   .tool { padding: 5px 8px; font-size: 12px; }
   .tools { padding: 8px; gap: 6px; }
   .meter { width: 64px; }

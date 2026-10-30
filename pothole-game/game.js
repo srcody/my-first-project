@@ -10,6 +10,17 @@
   const CONE_R = 9;           // traffic cone radius
   const BEST_KEY = 'pothole-patrol-best';
   const MUTE_KEY = 'pothole-patrol-muted';
+  const TRUCK_LANE = 112;     // top strip of road where the asphalt truck drives
+
+  const COMPANY = {
+    name: 'Asphalt Care Services LLC',
+    phone: '772.888.2840',
+    tel: 'tel:+17728882840',
+    site: 'asphaltcareservices.com',
+    estimateUrl: 'https://www.asphaltcareservices.com/contact/?utm_source=pothole-patrol&utm_medium=game&utm_campaign=free-estimate',
+  };
+  // where shared scores point; swap in the App Store / Google Play links once the app is listed
+  const GAME_URL = location.protocol.startsWith('http') ? location.origin + location.pathname : 'https://www.asphaltcareservices.com/';
 
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
@@ -18,10 +29,24 @@
     level: $('level'), time: $('time'), acc: $('acc'), score: $('score'), best: $('best'),
     shovel: $('tool-shovel'), roller: $('tool-roller'),
     bar: $('bar'), barLabel: $('bar-label'), meterIcon: $('meter-icon'), meterBar: $('meter-bar'),
-    hint: $('hint'), mute: $('mute'),
+    hint: $('hint'), mute: $('mute'), logo: $('logo'), wordmark: $('wordmark'),
     overlay: $('overlay'), ovTitle: $('ov-title'), ovText: $('ov-text'),
-    ovStats: $('ov-stats'), ovBtn: $('ov-btn'),
+    ovStats: $('ov-stats'), ovBtn: $('ov-btn'), shareBtn: $('share-btn'), toast: $('toast'),
   };
+
+  function loadImage(src, onload) {
+    const img = new Image();
+    if (onload) img.onload = onload;
+    img.src = src;
+    return img;
+  }
+  const isReady = (img) => img.complete && img.naturalWidth > 0;
+  const logoImg = loadImage('assets/logo.png', () => {
+    ui.logo.src = logoImg.src;
+    ui.logo.hidden = false;
+    ui.wordmark.hidden = true;
+  });
+  const markImg = loadImage('assets/logo-mark.png');
 
   let world = { w: 800, h: 600 };     // logical size, fixed for the duration of a level
   let view = { scale: 1, ox: 0, oy: 0 };
@@ -34,8 +59,10 @@
   let poured = 0, used = 0, consumed = 0, supply = 1, frameWaste = 0;
   let heatSum = 0, heatCount = 0, conesHit = 0, coolTime = 30, brush = 20;
   let phase = 'intro';                // intro | fill | roll | done | failed
-  let pointer = { x: 0, y: 0, down: false };
+  let pointer = { x: 0, y: 0, down: false, mouse: false };
   let roller = null;
+  let truck = null;
+  let lastResult = null;              // last finished level, for the share card
   let particles = [];
   let lastTime = performance.now();
 
@@ -164,12 +191,14 @@
       g.fillStyle = `rgba(${v},${v},${v + 3},0.5)`;
       g.fillRect(rand(0, world.w), rand(0, world.h), rand(1, 3), rand(1, 3));
     }
-    // lane markings along the top and bottom
+    // truck lane along the top, lane markings along the bottom
     g.fillStyle = '#e8c547';
     for (let x = 20; x < world.w; x += 90) {
-      g.fillRect(x, 18, 50, 7);
+      g.fillRect(x, TRUCK_LANE - 6, 50, 6);
       g.fillRect(x, world.h - 25, 50, 7);
     }
+    g.fillStyle = 'rgba(255,255,255,0.75)';
+    g.fillRect(0, 4, world.w, 4);
     return c;
   }
 
@@ -197,7 +226,7 @@
 
   function placeHoles() {
     const stretch = Math.min(1.45, world.w / world.h);  // use wide screens
-    const top = 45, bottom = world.h - 45;            // keep clear of the lane markings
+    const top = TRUCK_LANE + 15, bottom = world.h - 45; // keep clear of the truck lane and markings
     const sizes = holeSizes();
     for (let shrink = 1; shrink > 0.3; shrink *= 0.9) {
       const placed = [];
@@ -310,7 +339,7 @@
     for (let tries = 0; cones.length < count && tries < 1500; tries++) {
       const h = holes[Math.floor(Math.random() * holes.length)];
       const [x, y] = rimPoint(h, rand(0, Math.PI * 2), rand(80, 130));
-      if (x < 20 || y < 45 || x > world.w - 20 || y > world.h - 45) continue;
+      if (x < 20 || y < TRUCK_LANE + 25 || x > world.w - 20 || y > world.h - 45) continue;
       if (holes.some((o) => {
         const dx = (x - o.cx) / o.rx, dy = (y - o.cy) / o.ry;
         return Math.hypot(dx, dy) < edge(o, Math.atan2(dy, dx)) + 70 / o.ry;
@@ -334,6 +363,8 @@
     // the truck carries a bit more than the holes need; the margin shrinks with level
     supply = cells.length * Math.max(1.5, 1.9 - level * 0.04) * 1.1;
     coolTime = 25 + level * 6;
+    const home = Math.max(90, Math.min(world.w - 90, world.w * 0.35));
+    truck = { x: home, y: TRUCK_LANE / 2 + 2, home, wheel: 0 };
   }
 
   function startLevel() {
@@ -346,6 +377,7 @@
     heatCount = 0;
     conesHit = 0;
     particles = [];
+    truck.x = -110;  // the truck drives in at the start of each level
     // park the roller left of the leftmost hole, or on the left edge
     const first = holes.reduce((a, b) => (a.cx - a.rx < b.cx - b.rx ? a : b));
     roller = { x: Math.max(55, first.cx - first.rx * 1.3 - 70), y: first.cy, angle: 0, speed: 0, phase: 0 };
@@ -385,9 +417,9 @@
   canvas.addEventListener('pointerdown', (e) => {
     sound.init();
     canvas.setPointerCapture(e.pointerId);
-    Object.assign(pointer, toWorld(e), { down: true });
+    Object.assign(pointer, toWorld(e), { down: true, mouse: e.pointerType === 'mouse' });
   });
-  canvas.addEventListener('pointermove', (e) => Object.assign(pointer, toWorld(e)));
+  canvas.addEventListener('pointermove', (e) => Object.assign(pointer, toWorld(e), { mouse: e.pointerType === 'mouse' }));
   const release = () => { pointer.down = false; };
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
@@ -397,6 +429,8 @@
     if (phase === 'done') level++;
     startLevel();
   });
+
+  ui.shareBtn.addEventListener('click', shareScore);
 
   ui.mute.addEventListener('click', () => {
     sound.init();
@@ -581,12 +615,118 @@
     }
   }
 
-  function showOverlay(title, html, stats, button) {
+  function updateTruck(dt) {
+    if (!truck) return;
+    // drive in at the start of a level, then follow the nozzle so the hose reaches it
+    const target = phase === 'fill' && pointer.down
+      ? Math.max(90, Math.min(world.w - 90, pointer.x + 70))
+      : truck.x < truck.home - 1 || phase === 'intro' ? truck.home : truck.x;
+    const before = truck.x;
+    truck.x += (target - truck.x) * (1 - Math.exp(-dt * 2.5));
+    truck.wheel += truck.x - before;
+  }
+
+  function showOverlay(title, html, stats, button, shareable = false) {
     ui.ovTitle.textContent = title;
     ui.ovText.innerHTML = html;
     ui.ovStats.innerHTML = stats;
     ui.ovBtn.textContent = button;
+    ui.shareBtn.hidden = !shareable;
     setTimeout(() => ui.overlay.classList.remove('hidden'), 600);
+  }
+
+  let toastTimer = 0;
+  function toast(msg) {
+    ui.toast.textContent = msg;
+    ui.toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => ui.toast.classList.remove('show'), 2600);
+  }
+
+  // ---------- sharing ----------
+
+  function makeShareCard(r) {
+    const c = document.createElement('canvas');
+    c.width = 1080;
+    c.height = 1080;
+    const g = c.getContext('2d');
+    g.fillStyle = '#2b2d30';
+    g.fillRect(0, 0, 1080, 1080);
+    for (let i = 0; i < 9000; i++) {
+      const v = Math.floor(rand(40, 95));
+      g.fillStyle = `rgba(${v},${v},${v},0.6)`;
+      g.fillRect(rand(0, 1080), rand(0, 1080), rand(2, 5), rand(2, 5));
+    }
+    g.fillStyle = '#fff';
+    g.fillRect(0, 0, 1080, 230);
+    g.fillStyle = '#fe130f';
+    g.fillRect(0, 230, 1080, 14);
+    drawLogo(g, logoImg, 80, 40, 920, 150);
+
+    g.textAlign = 'center';
+    g.fillStyle = '#fff';
+    g.font = '800 96px Poppins, sans-serif';
+    g.fillText('POTHOLE PATROL', 540, 395);
+    g.fillStyle = '#d0d0d0';
+    g.font = '600 50px "Open Sans", sans-serif';
+    g.fillText(`I paved level ${r.level}!`, 540, 480);
+    g.font = '120px sans-serif';
+    for (let i = 0; i < 3; i++) {
+      g.fillStyle = i < r.stars ? '#ffc21a' : '#555';
+      g.fillText('★', 400 + i * 140, 630);
+    }
+    g.fillStyle = '#fe130f';
+    g.font = '800 150px Poppins, sans-serif';
+    g.fillText(r.score.toLocaleString(), 540, 810);
+    g.fillStyle = '#fff';
+    g.font = '700 42px "Open Sans", sans-serif';
+    g.fillText('POINTS', 540, 870);
+
+    g.fillStyle = '#009cde';
+    g.fillRect(0, 930, 1080, 150);
+    g.fillStyle = '#fff';
+    g.font = '700 46px "Open Sans", sans-serif';
+    g.fillText('Can you beat my score? Play free!', 540, 995);
+    g.font = '600 38px "Open Sans", sans-serif';
+    g.fillText(`${COMPANY.site}  ·  ${COMPANY.phone}`, 540, 1050);
+    return c;
+  }
+
+  async function shareScore() {
+    const r = lastResult;
+    if (!r) return;
+    const text = `I scored ${r.score.toLocaleString()} points and paved level ${r.level} in Pothole Patrol by ${COMPANY.name}. Can you beat it?`;
+    let blob = null;
+    try {
+      blob = await new Promise((resolve) => makeShareCard(r).toBlob(resolve, 'image/png'));
+    } catch { /* canvas unavailable; share text only */ }
+    const file = blob && new File([blob], 'pothole-patrol-score.png', { type: 'image/png' });
+    try {
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Pothole Patrol', text: `${text} ${GAME_URL}` });
+        return;
+      }
+      if (navigator.share) {
+        await navigator.share({ title: 'Pothole Patrol', text, url: GAME_URL });
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;  // the player closed the share sheet
+    }
+    // no share sheet (most desktops): download the card and copy the message
+    if (blob) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'pothole-patrol-score.png';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    }
+    try {
+      await navigator.clipboard.writeText(`${text} ${GAME_URL}`);
+      toast(blob ? 'Score card saved and message copied' : 'Message copied');
+    } catch {
+      toast(blob ? 'Score card saved' : 'Sharing is not available here');
+    }
   }
 
   function failLevel() {
@@ -617,6 +757,7 @@
     if (newBest) { best = score; save(BEST_KEY, best); }
     ui.score.textContent = score;
     ui.best.textContent = best;
+    lastResult = { level, score, stars };
 
     const row = (label, value, pts, cls = '') =>
       `<span class="${cls}">${label}</span><b class="${cls}">${value}</b><span class="pts ${cls}">${pts}</span>`;
@@ -629,13 +770,14 @@
       row('Speed', `${elapsed.toFixed(1)}s`, `+${timePts}`) +
       (cones.length ? row('Cones knocked', conesHit, conePts ? `−${conePts}` : '0') : '') +
       row('Level total', '', `+${total}`, 'total'),
-      'Next level');
+      'Next level', true);
   }
 
   function update(dt) {
     if (phase === 'fill' || phase === 'roll') elapsed += dt;
     if (phase === 'fill') updateFill(dt);
     if (roller && (phase === 'roll' || phase === 'done')) updateRoll(dt);
+    updateTruck(dt);
     updateCooling(dt);
     updateCones(dt);
 
@@ -770,20 +912,116 @@
         ctx.fillRect(x - 11 + off, -31, 1.5, 62);
       }
     }
-    // yellow frame and body
-    ctx.fillStyle = '#f2b705';
+    // red frame and body
+    ctx.fillStyle = '#fe130f';
     ctx.fillRect(-36, -34, 72, 5);
     ctx.fillRect(-36, 29, 72, 5);
-    ctx.fillRect(-18, -24, 36, 48);
-    // engine cover and seat
-    ctx.fillStyle = '#3b3f44';
-    ctx.fillRect(-16, -18, 18, 36);
+    ctx.fillRect(-19, -27, 38, 54);
+    // white roof panel with the company mark, and the seat
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-17, -25, 19, 50);
+    ctx.save();
+    ctx.translate(-7.5, 0);
+    ctx.rotate(Math.PI / 2);
+    drawLogo(ctx, markImg, -24, -8, 48, 16);
+    ctx.restore();
     ctx.fillStyle = '#1e2124';
     ctx.fillRect(5, -9, 9, 18);
     // headlights show the front
     ctx.fillStyle = '#fff7c2';
     ctx.fillRect(15, -20, 3, 6);
     ctx.fillRect(15, 14, 3, 6);
+    ctx.restore();
+  }
+
+  // Draw an image scaled to fit the box, or the company name as text until it loads.
+  function drawLogo(g, img, x, y, w, h) {
+    if (isReady(img)) {
+      const s = Math.min(w / img.naturalWidth, h / img.naturalHeight);
+      const dw = img.naturalWidth * s, dh = img.naturalHeight * s;
+      g.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+      return;
+    }
+    g.save();
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillStyle = '#fe130f';
+    g.font = `800 ${h * 0.42}px Poppins, sans-serif`;
+    g.fillText('ASPHALT CARE', x + w / 2, y + h * 0.32, w);
+    g.fillStyle = '#009cde';
+    g.font = `700 ${h * 0.28}px Poppins, sans-serif`;
+    g.fillText('SERVICES LLC', x + w / 2, y + h * 0.76, w);
+    g.restore();
+  }
+
+  function roundRect(x, y, w, h, r) {
+    if (!ctx.roundRect) { ctx.fillRect(x, y, w, h); return; }  // older iOS
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, r);
+    ctx.fill();
+  }
+
+  function drawHose() {
+    // a hose from the truck's rear chute down to the nozzle
+    const sx = truck.x - 76, sy = truck.y + 6;
+    const mx = (sx + pointer.x) / 2, my = Math.max(sy, pointer.y) + 30;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#151618';
+    ctx.lineWidth = 9;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.quadraticCurveTo(mx, my, pointer.x, pointer.y);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#3b3f44';
+    ctx.beginPath();
+    ctx.arc(pointer.x, pointer.y, 7, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawTruck() {
+    ctx.save();
+    ctx.translate(truck.x, truck.y);
+    // shadow and wheels
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    roundRect(-76, -22, 160, 54, 6);
+    ctx.fillStyle = '#111';
+    for (const x of [-56, -30, 52]) {
+      ctx.fillRect(x - 10, -31, 20, 7);
+      ctx.fillRect(x - 10, 24, 20, 7);
+    }
+    ctx.fillStyle = '#555';
+    for (const x of [-56, -30, 52]) {
+      const off = ((truck.wheel % 6) + 6) % 6;
+      ctx.fillRect(x - 10 + off, -31, 2, 7);
+      ctx.fillRect(x - 10 + off, 24, 2, 7);
+    }
+    // red dump body with the company logo on a white panel
+    ctx.fillStyle = '#c80d0a';
+    roundRect(-80, -27, 116, 54, 4);
+    ctx.fillStyle = '#fe130f';
+    roundRect(-77, -24, 110, 48, 3);
+    ctx.fillStyle = '#fff';
+    roundRect(-73, -19, 102, 38, 3);
+    drawLogo(ctx, logoImg, -71, -17, 98, 34);
+    // rear chute
+    ctx.fillStyle = '#3b3f44';
+    ctx.fillRect(-86, -6, 8, 18);
+    // cab
+    ctx.fillStyle = '#fe130f';
+    roundRect(39, -25, 42, 50, 7);
+    ctx.fillStyle = '#c80d0a';
+    ctx.fillRect(43, -21, 16, 42);
+    ctx.fillStyle = '#20252b';
+    roundRect(63, -21, 11, 42, 3);
+    ctx.fillStyle = '#fe130f';
+    ctx.fillRect(56, -30, 5, 5);
+    ctx.fillRect(56, 25, 5, 5);
+    ctx.fillStyle = '#fff7c2';
+    ctx.fillRect(79, -20, 3, 7);
+    ctx.fillRect(79, 13, 3, 7);
     ctx.restore();
   }
 
@@ -818,10 +1056,15 @@
 
     for (const c of cones) drawCone(c);
 
-    if (phase === 'fill') {
+    if (truck) {
+      if (phase === 'fill' && pointer.down) drawHose();
+      drawTruck();
+    }
+
+    if (phase === 'fill' && (pointer.down || pointer.mouse)) {
       // nozzle ring turns red when most of the pour is missing the hole
       const wasting = pointer.down && frameWaste > 0.5;
-      ctx.strokeStyle = wasting ? '#e5533d' : pointer.down ? '#f2b705' : 'rgba(242,183,5,0.6)';
+      ctx.strokeStyle = wasting ? '#fe130f' : pointer.down ? '#ffffff' : 'rgba(255,255,255,0.6)';
       ctx.lineWidth = 2;
       ctx.setLineDash([5, 4]);
       ctx.beginPath();
@@ -856,5 +1099,10 @@
   ui.best.textContent = best;
   ui.hint.style.opacity = 0;
   updateMuteButton();
+  for (const a of document.querySelectorAll('.js-estimate')) a.href = COMPANY.estimateUrl;
+  for (const a of document.querySelectorAll('.js-phone')) {
+    a.href = COMPANY.tel;
+    a.textContent = `📞 Call ${COMPANY.phone}`;
+  }
   requestAnimationFrame(frame);
 })();

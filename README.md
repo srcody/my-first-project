@@ -30,3 +30,6 @@ There is no build step. Drag this folder into Netlify, or connect the repo with 
 - Asphalt cools after it's poured. Hot asphalt flattens faster and earns a bonus.
 - Traffic cones appear from level 2; each one the roller knocks over costs points.
 - Sound effects are generated in the browser (mute button next to the title). Your best score is saved in the browser.
+- Branded for Asphalt Care Services LLC: logo (`pothole-game/assets/`), brand colours, a red company truck that pours the asphalt, and a logo on the roller.
+- "Free estimate" and "Got a real pothole?" link to the company's contact page (tagged with `utm_source=pothole-patrol` so the visits can be tracked); the call link dials 772.888.2840. Contact details live in the `COMPANY` block at the top of `game.js`.
+- "Share score" makes a branded score card image and opens the phone's share sheet (on desktop it downloads the image and copies the message). Shared links point at `GAME_URL` in `game.js`; change it to the App Store / Google Play links once the app is listed.

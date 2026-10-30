@@ -3,15 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#FE130F">
   <title>Pothole Patrol | Asphalt Care Services LLC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Open+Sans:wght@400;600;700&display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="hud">
     <div class="brand">
-      <div class="company">Asphalt Care Services LLC</div>
-      <div class="title">Pothole Patrol <button id="mute" class="mute" aria-label="Mute sound">🔊</button></div>
+      <img id="logo" class="logo" alt="Asphalt Care Services LLC" hidden>
+      <div class="brand-text">
+        <div id="wordmark" class="company">Asphalt Care <span>Services LLC</span></div>
+        <div class="title">Pothole Patrol <button id="mute" class="mute" aria-label="Mute sound">🔊</button></div>
+      </div>
     </div>
+    <a class="estimate-pill js-estimate" target="_blank" rel="noopener">Free estimate</a>
     <div class="stats">
       <span>Level <b id="level">1</b></span>
       <span>Time <b id="time">0.0</b>s</span>
@@ -49,9 +57,19 @@
           </ul>
         </div>
         <div id="ov-stats" class="summary"></div>
-        <button id="ov-btn">Start</button>
+        <button id="ov-btn" class="primary">Start</button>
+        <div class="secondary">
+          <button id="share-btn" class="ghost" hidden>📤 Share score</button>
+          <a class="ghost js-estimate" target="_blank" rel="noopener">🛠️ Got a real pothole?</a>
+        </div>
+        <p class="contact">
+          Free estimates across the Treasure Coast &amp; the Palm Beaches<br>
+          <a class="js-phone"></a>
+        </p>
       </div>
     </div>
+
+    <div id="toast" class="toast" role="status"></div>
   </main>
 
   <script src="game.js"></script>
