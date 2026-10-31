@@ -14,8 +14,8 @@
 
   const COMPANY = {
     name: 'Asphalt Care Services LLC',
-    phone: '772.888.2840',
-    tel: 'tel:+17728882840',
+    phone: '772.775.6964',
+    tel: 'tel:+17727756964',
     site: 'asphaltcareservices.com',
     estimateUrl: 'https://www.asphaltcareservices.com/contact/?utm_source=pothole-patrol&utm_medium=game&utm_campaign=free-estimate',
   };
