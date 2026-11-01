@@ -22,7 +22,7 @@
     estimateUrl: 'https://www.asphaltcareservices.com/contact/?utm_source=pothole-patrol&utm_medium=game&utm_campaign=free-estimate',
   };
   // global leaderboard (Supabase). The publishable key is meant to be public: the database
-  // only lets it call submit_score and top_scores, which validate everything.
+  // only lets it call save_score and top_scores, which validate everything.
   const LEADERBOARD = {
     url: 'https://gniefjorxzozefrycpvr.supabase.co/rest/v1/rpc/',
     key: 'sb_publishable_HeJxsaXEZOqM5lJCtwrMMw_xyngX7wc',
@@ -79,10 +79,20 @@
   let truck = null;
   let lastResult = null;              // last finished level, for the share card
   let lives = LIVES;
+  let runId = newRunId();             // one leaderboard entry per run, updated as it goes
+  let runSaved = false;
   let particles = [];
   let lastTime = performance.now();
 
   function rand(a, b) { return a + Math.random() * (b - a); }
+
+  function newRunId() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 3) | 8).toString(16);
+    });
+  }
 
   function load(key, fallback) {
     try { const v = localStorage.getItem(key); return v === null ? fallback : JSON.parse(v); } catch { return fallback; }
@@ -538,6 +548,10 @@
       save(NAME_KEY, name);
     }
     if (phase === 'done') level++;
+    if (phase === 'intro' || phase === 'gameover') {
+      runId = newRunId();
+      runSaved = false;
+    }
     if (phase === 'gameover') {
       level = 1;
       score = 0;
@@ -993,6 +1007,19 @@
     }
   }
 
+  // with a name from the start screen, every finished level updates this run's leaderboard entry
+  async function saveProgress() {
+    const name = cleanName(load(NAME_KEY, ''));
+    if (!validName(name) || score <= 0) return;
+    try {
+      const [row] = await rpc('save_score', { p_name: name, p_score: score, p_level: level, p_run: runId });
+      runSaved = true;
+      toast(`Saved to the leaderboard: #${row.out_rank}`);
+    } catch (e) {
+      if (/name not allowed/.test(e.message)) save(NAME_KEY, '');  // ask for another name at game over
+    }
+  }
+
   async function submitScore() {
     const name = cleanName(ui.playerName.value);
     if (!validName(name)) {
@@ -1002,12 +1029,19 @@
     ui.submitBtn.disabled = true;
     ui.submitMsg.textContent = 'Sending…';
     try {
-      const [row] = await rpc('submit_score', { p_name: name, p_score: score, p_level: level });
+      const [row] = await rpc('save_score', { p_name: name, p_score: score, p_level: level, p_run: runId });
       save(NAME_KEY, name);
+      runSaved = true;
       ui.submitForm.hidden = true;
       toast(`You're #${row.out_rank} on the leaderboard!`);
       showBoard({ name, score });
     } catch (e) {
+      if (runSaved && /too many/.test(e.message)) {
+        // this run's score was saved moments ago; nothing new to send
+        ui.submitForm.hidden = true;
+        showBoard({ name, score });
+        return;
+      }
       ui.submitForm.hidden = false;
       ui.submitBtn.disabled = false;
       ui.submitMsg.textContent = /name not allowed/.test(e.message) ? 'Please pick a different name'
@@ -1037,6 +1071,7 @@
     ui.score.textContent = score;
     ui.best.textContent = best;
     lastResult = { level, score, stars };
+    saveProgress();
 
     const row = (label, value, pts, cls = '') =>
       `<span class="${cls}">${label}</span><b class="${cls}">${value}</b><span class="pts ${cls}">${pts}</span>`;

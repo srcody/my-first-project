@@ -37,6 +37,6 @@ There is no build step. Drag this folder into Netlify, or connect the repo with 
 
 ### Global leaderboard
 
-At game over, players can enter a nickname (2–12 letters, numbers or spaces) and submit their score to a global top 10 hosted on Supabase (project `pothole-patrol`, table `public.scores`). The game only calls two database functions, `submit_score` and `top_scores`; it cannot read or change the table directly. `submit_score` rejects bad names (including a basic word filter), impossible scores and more than 3 submissions a minute from one connection.
+Players can give a nickname (2–12 letters, numbers or spaces) on the start screen; each run then has one entry on a global top 10 hosted on Supabase (project `pothole-patrol`, table `public.scores`), saved after every finished level and again at game over. Without a name, the player is asked for one at game over. The game only calls two database functions, `save_score` and `top_scores`; it cannot read or change the table directly. `save_score` rejects bad names (including a basic word filter) and impossible scores, never lowers a run's score, and limits new entries to 3 a minute per connection and updates to one every 3 seconds per run. (`submit_score` is the older version, kept for copies of the game that haven't updated.)
 
 To remove an entry, open the `scores` table in the Supabase dashboard and set its `hidden` column to `true` (or delete the row).
