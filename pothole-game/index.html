@@ -39,6 +39,7 @@
       <span id="meter-icon">🚚</span>
       <div class="meter-track"><div id="meter-bar"></div></div>
     </div>
+    <button id="board-open" class="tool board-tool" type="button" title="Leaderboard" aria-label="Show the leaderboard">🏆</button>
   </div>
 
   <main class="stage">
@@ -84,6 +85,13 @@
           Free estimates across the Treasure Coast &amp; the Palm Beaches<br>
           <a class="js-phone"></a>
         </p>
+      </div>
+    </div>
+
+    <div id="board-panel" class="overlay hidden" role="dialog" aria-label="Leaderboard">
+      <div class="card">
+        <div id="panel-board" class="board"></div>
+        <button id="board-close" class="primary" type="button">Back to the game</button>
       </div>
     </div>
 

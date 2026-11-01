@@ -93,6 +93,8 @@ body { display: flex; flex-direction: column; }
 }
 .tool.active { border-color: var(--red); color: #fff; background: #4a2a2a; }
 .tool.done { opacity: .5; text-decoration: line-through; }
+.board-tool { flex: none; cursor: pointer; color: #fff; border-color: #ffc21a; padding: 6px 10px; }
+.board-tool:active { background: #4a4535; }
 
 .progress {
   position: relative;

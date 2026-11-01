@@ -46,6 +46,7 @@
     lives: $('lives'), boardBtn: $('board-btn'), submitForm: $('submit-form'), playerName: $('player-name'),
     submitBtn: $('submit-score'), submitMsg: $('submit-msg'), board: $('board'),
     nameField: $('name-field'), startName: $('start-name'), nameMsg: $('name-msg'),
+    boardOpen: $('board-open'), boardPanel: $('board-panel'), panelBoard: $('panel-board'), boardClose: $('board-close'),
   };
 
   function loadImage(src, onload) {
@@ -81,6 +82,8 @@
   let lives = LIVES;
   let runId = newRunId();             // one leaderboard entry per run, updated as it goes
   let runSaved = false;
+  let savedScore = 0, savedRank = 0;  // this run's entry as last saved
+  let paused = false;                 // while the leaderboard panel is open
   let particles = [];
   let lastTime = performance.now();
 
@@ -551,6 +554,8 @@
     if (phase === 'intro' || phase === 'gameover') {
       runId = newRunId();
       runSaved = false;
+      savedScore = 0;
+      savedRank = 0;
     }
     if (phase === 'gameover') {
       level = 1;
@@ -562,6 +567,28 @@
   });
 
   ui.boardBtn.addEventListener('click', () => showBoard());
+
+  // the 🏆 button pauses the game and shows the leaderboard over it
+  function openBoardPanel() {
+    sound.init();
+    pointer.down = false;
+    paused = true;
+    ui.boardPanel.classList.remove('hidden');
+    const name = cleanName(load(NAME_KEY, ''));
+    showBoard(runSaved ? { name, score: savedScore } : null, ui.panelBoard);
+    ui.boardClose.focus();
+  }
+  function closeBoardPanel() {
+    ui.boardPanel.classList.add('hidden');
+    paused = false;
+    lastTime = performance.now();  // don't count the time spent looking
+  }
+  ui.boardOpen.addEventListener('click', openBoardPanel);
+  ui.boardClose.addEventListener('click', closeBoardPanel);
+  ui.boardPanel.addEventListener('click', (e) => { if (e.target === ui.boardPanel) closeBoardPanel(); });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !ui.boardPanel.classList.contains('hidden')) closeBoardPanel();
+  });
   ui.submitForm.addEventListener('submit', (e) => {
     e.preventDefault();
     submitScore();
@@ -990,20 +1017,24 @@
     return String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   }
 
-  async function showBoard(highlight = null) {
-    ui.board.hidden = false;
-    ui.boardBtn.hidden = true;
-    ui.board.innerHTML = '<p class="board-note">Loading top scores…</p>';
+  async function showBoard(highlight = null, target = ui.board) {
+    if (target === ui.board) {
+      ui.board.hidden = false;
+      ui.boardBtn.hidden = true;
+    }
+    target.innerHTML = '<p class="board-note">Loading top scores…</p>';
     try {
       const rows = await rpc('top_scores', { p_limit: 10 });
-      ui.board.innerHTML = '<h2>🏆 Top scores</h2>' + (rows.length
+      const mine = runSaved && savedRank
+        ? `<p class="board-note">This run: <b>#${savedRank}</b> with ${savedScore.toLocaleString()} points</p>` : '';
+      target.innerHTML = '<h2>🏆 Top scores</h2>' + (rows.length
         ? '<ol>' + rows.map((r, i) =>
           `<li class="${highlight && r.name === highlight.name && r.score === highlight.score ? 'me' : ''}">` +
           `<span class="rank">${i + 1}</span><span class="who">${escapeHtml(r.name)}</span>` +
           `<span class="lvl">L${r.level}</span><b>${r.score.toLocaleString()}</b></li>`).join('') + '</ol>'
-        : '<p class="board-note">No scores yet. Be the first!</p>');
+        : '<p class="board-note">No scores yet. Be the first!</p>') + mine;
     } catch {
-      ui.board.innerHTML = '<p class="board-note">Couldn\'t reach the leaderboard. Check your connection.</p>';
+      target.innerHTML = '<p class="board-note">Couldn\'t reach the leaderboard. Check your connection.</p>';
     }
   }
 
@@ -1014,6 +1045,8 @@
     try {
       const [row] = await rpc('save_score', { p_name: name, p_score: score, p_level: level, p_run: runId });
       runSaved = true;
+      savedScore = score;
+      savedRank = row.out_rank;
       toast(`Saved to the leaderboard: #${row.out_rank}`);
     } catch (e) {
       if (/name not allowed/.test(e.message)) save(NAME_KEY, '');  // ask for another name at game over
@@ -1032,6 +1065,8 @@
       const [row] = await rpc('save_score', { p_name: name, p_score: score, p_level: level, p_run: runId });
       save(NAME_KEY, name);
       runSaved = true;
+      savedScore = score;
+      savedRank = row.out_rank;
       ui.submitForm.hidden = true;
       toast(`You're #${row.out_rank} on the leaderboard!`);
       showBoard({ name, score });
@@ -1089,6 +1124,12 @@
   }
 
   function update(dt) {
+    if (paused) {
+      sound.pour(false);
+      sound.saw(false, false);
+      sound.engine(false, 0);
+      return;
+    }
     if (phase === 'cut' || phase === 'fill' || phase === 'roll') elapsed += dt;
     if (phase === 'cut') updateCut(dt);
     if (phase === 'fill') updateFill(dt);
