@@ -49,6 +49,7 @@ body { display: flex; flex-direction: column; }
 .title { font-family: Poppins, sans-serif; font-weight: 800; font-size: 20px; }
 .stats { display: flex; gap: 14px; font-size: 14px; color: #555; }
 .stats b { color: var(--ink); }
+.stats > span { white-space: nowrap; }
 
 .estimate-pill {
   margin-left: auto;
@@ -128,9 +129,10 @@ canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
 
 .hint {
   position: absolute;
-  left: 50%; bottom: 16px;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, .65);
+  left: 0; right: 0; top: 10px;
+  width: fit-content;
+  margin: 0 auto;
+  background: rgba(0, 0, 0, .75);
   padding: 8px 14px;
   border-radius: 999px;
   font-size: 14px;
@@ -212,10 +214,16 @@ canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
 .lives { letter-spacing: 1px; }
 
 .submit-form { margin: -4px 0 14px; }
+.name-field { text-align: left; margin: -4px 0 16px; }
+.name-field[hidden] { display: none; }
+.name-field label { display: block; font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 5px; }
+.name-msg { font-size: 12px; color: #999; margin-top: 4px; }
+.name-msg.error { color: #ff6b5b; }
 .submit-msg { font-size: 13px; color: #ccc; margin-bottom: 6px; }
 .submit-row { display: flex; gap: 6px; }
-.submit-row input {
+.submit-row input, .name-field input {
   flex: 1;
+  width: 100%;
   min-width: 0;
   padding: 9px 10px;
   border-radius: 5px;
@@ -251,7 +259,7 @@ canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
 
 .toast {
   position: absolute;
-  left: 50%; top: 16px;
+  left: 50%; top: 64px;  /* below the in-game prompt */
   transform: translate(-50%, -20px);
   background: #fff;
   color: var(--ink);
@@ -283,4 +291,7 @@ canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
 
 @media (max-width: 430px) {
   .tool .lbl { display: none; }  /* icons only on narrow phones */
+  .stats { gap: 8px; font-size: 12px; justify-content: space-between; }
+  .stats .opt { display: none; }  /* time is the least useful stat on a phone */
+  .hint { font-size: 12.5px; padding: 6px 12px; }
 }

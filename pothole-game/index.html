@@ -22,7 +22,7 @@
     <a class="estimate-pill js-estimate" target="_blank" rel="noopener">Free estimate</a>
     <div class="stats">
       <span>Level <b id="level">1</b></span>
-      <span>Time <b id="time">0.0</b>s</span>
+      <span class="opt">Time <b id="time">0.0</b>s</span>
       <span>Accuracy <b id="acc">–</b></span>
       <span>Score <b id="score">0</b></span>
       <span>Best <b id="best">0</b></span>
@@ -69,6 +69,11 @@
           </div>
         </form>
         <div id="board" class="board" hidden></div>
+        <div id="name-field" class="name-field">
+          <label for="start-name">Your name for the leaderboard</label>
+          <input id="start-name" type="text" maxlength="12" placeholder="Name (optional)" autocomplete="nickname">
+          <p id="name-msg" class="name-msg">Your score is posted automatically at game over</p>
+        </div>
         <button id="ov-btn" class="primary">Start</button>
         <div class="secondary">
           <button id="board-btn" class="ghost" type="button">🏆 Top scores</button>

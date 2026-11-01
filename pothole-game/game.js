@@ -45,6 +45,7 @@
     ovStats: $('ov-stats'), ovBtn: $('ov-btn'), shareBtn: $('share-btn'), toast: $('toast'),
     lives: $('lives'), boardBtn: $('board-btn'), submitForm: $('submit-form'), playerName: $('player-name'),
     submitBtn: $('submit-score'), submitMsg: $('submit-msg'), board: $('board'),
+    nameField: $('name-field'), startName: $('start-name'), nameMsg: $('name-msg'),
   };
 
   function loadImage(src, onload) {
@@ -520,8 +521,22 @@
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
 
+  const cleanName = (v) => v.trim().replace(/\s+/g, ' ');
+  const validName = (n) => /^[A-Za-z0-9 ]{2,12}$/.test(n);
+
   ui.ovBtn.addEventListener('click', () => {
     sound.init();
+    if (phase === 'intro') {
+      // the optional leaderboard name from the start screen
+      const name = cleanName(ui.startName.value);
+      if (name && !validName(name)) {
+        ui.nameMsg.textContent = 'Use 2–12 letters, numbers or spaces, or leave it blank';
+        ui.nameMsg.classList.add('error');
+        ui.startName.focus();
+        return;
+      }
+      save(NAME_KEY, name);
+    }
     if (phase === 'done') level++;
     if (phase === 'gameover') {
       level = 1;
@@ -802,6 +817,7 @@
   }
 
   function showOverlay(title, html, stats, button, shareable = false) {
+    ui.nameField.hidden = true;  // only on the start screen
     ui.submitForm.hidden = true;
     ui.board.hidden = true;
     ui.boardBtn.hidden = false;
@@ -930,10 +946,15 @@
       why + `<p>You reached level ${level} with <b>${score.toLocaleString()}</b> points.</p>`,
       '', 'Play again');
     if (score > 0) {
-      ui.submitForm.hidden = false;
       ui.submitBtn.disabled = false;
       ui.submitMsg.textContent = 'Add your score to the leaderboard';
       ui.playerName.value = load(NAME_KEY, '');
+      // a name given at the start is submitted straight away
+      if (validName(cleanName(ui.playerName.value))) {
+        submitScore();
+        return;
+      }
+      ui.submitForm.hidden = false;
     }
     showBoard();
   }
@@ -973,8 +994,8 @@
   }
 
   async function submitScore() {
-    const name = ui.playerName.value.trim().replace(/\s+/g, ' ');
-    if (!/^[A-Za-z0-9 ]{2,12}$/.test(name)) {
+    const name = cleanName(ui.playerName.value);
+    if (!validName(name)) {
       ui.submitMsg.textContent = 'Use 2–12 letters, numbers or spaces';
       return;
     }
@@ -987,6 +1008,7 @@
       toast(`You're #${row.out_rank} on the leaderboard!`);
       showBoard({ name, score });
     } catch (e) {
+      ui.submitForm.hidden = false;
       ui.submitBtn.disabled = false;
       ui.submitMsg.textContent = /name not allowed/.test(e.message) ? 'Please pick a different name'
         : /too many/.test(e.message) ? 'Too many scores sent. Try again in a minute'
@@ -1425,6 +1447,7 @@
   ui.hint.style.opacity = 0;
   updateMuteButton();
   updateLives();
+  ui.startName.value = load(NAME_KEY, '');
   for (const a of document.querySelectorAll('.js-estimate')) a.href = COMPANY.estimateUrl;
   for (const a of document.querySelectorAll('.js-phone')) {
     a.href = COMPANY.tel;
