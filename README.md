@@ -27,10 +27,16 @@ There is no build step. Drag this folder into Netlify, or connect the repo with 
 
 - Potholes get bigger every level; from level 3 there are two, and from level 6 three.
 - Cut precision: sawing off the dashed line scars the road and lowers the score.
-- Fill accuracy: asphalt spilled on the road lowers your score and empties the truck. Run out before the holes are full and you redo the level.
+- Fill accuracy: asphalt spilled on the road lowers your score and empties the truck. Run out before the holes are full and you lose one of your 3 lives; losing all 3 ends the run.
 - Asphalt cools after it's poured. Hot asphalt flattens faster and earns a bonus.
 - Traffic cones appear from level 2; each one the roller knocks over costs points.
 - Sound effects are generated in the browser (mute button next to the title). Your best score is saved in the browser.
 - Branded for Asphalt Care Services LLC: logo (`pothole-game/assets/`), brand colours, a red company truck that pours the asphalt, and a logo on the roller.
 - "Free estimate" and "Got a real pothole?" link to the company's contact page (tagged with `utm_source=pothole-patrol` so the visits can be tracked); the call link dials 772.775.6964. Contact details live in the `COMPANY` block at the top of `game.js`.
 - "Share score" makes a branded score card image and opens the phone's share sheet (on desktop it downloads the image and copies the message). Shared links point at `GAME_URL` in `game.js`; change it to the App Store / Google Play links once the app is listed.
+
+### Global leaderboard
+
+At game over, players can enter a nickname (2–12 letters, numbers or spaces) and submit their score to a global top 10 hosted on Supabase (project `pothole-patrol`, table `public.scores`). The game only calls two database functions, `submit_score` and `top_scores`; it cannot read or change the table directly. `submit_score` rejects bad names (including a basic word filter), impossible scores and more than 3 submissions a minute from one connection.
+
+To remove an entry, open the `scores` table in the Supabase dashboard and set its `hidden` column to `true` (or delete the row).

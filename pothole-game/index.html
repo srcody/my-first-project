@@ -26,6 +26,7 @@
       <span>Accuracy <b id="acc">–</b></span>
       <span>Score <b id="score">0</b></span>
       <span>Best <b id="best">0</b></span>
+      <span id="lives" class="lives"></span>
     </div>
   </header>
 
@@ -53,14 +54,24 @@
           <ul>
             <li>🪚 Saw along the dashed lines. Cutting off the line scars the road and costs precision.</li>
             <li>🎯 Pour inside the holes: spills cost accuracy. Glowing spots still need asphalt.</li>
-            <li>🚚 The truck only holds so much. Run out and you redo the level.</li>
+            <li>🚚 The truck only holds so much. Run out and you lose a life.</li>
             <li>🌡️ Asphalt cools after it's poured. Roll it while it's hot for a bonus.</li>
             <li>🚧 Don't knock over the cones.</li>
+            <li>❤️ You have 3 lives. Running out of asphalt costs one. Make the global top 10!</li>
           </ul>
         </div>
         <div id="ov-stats" class="summary"></div>
+        <form id="submit-form" class="submit-form" hidden>
+          <p id="submit-msg" class="submit-msg">Add your score to the leaderboard</p>
+          <div class="submit-row">
+            <input id="player-name" type="text" maxlength="12" placeholder="Your name" autocomplete="nickname" aria-label="Your name">
+            <button id="submit-score" type="submit" class="primary small">Submit</button>
+          </div>
+        </form>
+        <div id="board" class="board" hidden></div>
         <button id="ov-btn" class="primary">Start</button>
         <div class="secondary">
+          <button id="board-btn" class="ghost" type="button">🏆 Top scores</button>
           <button id="share-btn" class="ghost" hidden>📤 Share score</button>
           <a class="ghost js-estimate" target="_blank" rel="noopener">🛠️ Got a real pothole?</a>
         </div>

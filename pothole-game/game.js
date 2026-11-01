@@ -21,6 +21,15 @@
     site: 'asphaltcareservices.com',
     estimateUrl: 'https://www.asphaltcareservices.com/contact/?utm_source=pothole-patrol&utm_medium=game&utm_campaign=free-estimate',
   };
+  // global leaderboard (Supabase). The publishable key is meant to be public: the database
+  // only lets it call submit_score and top_scores, which validate everything.
+  const LEADERBOARD = {
+    url: 'https://gniefjorxzozefrycpvr.supabase.co/rest/v1/rpc/',
+    key: 'sb_publishable_HeJxsaXEZOqM5lJCtwrMMw_xyngX7wc',
+  };
+  const NAME_KEY = 'pothole-patrol-name';
+  const LIVES = 3;
+
   // where shared scores point; swap in the App Store / Google Play links once the app is listed
   const GAME_URL = location.protocol.startsWith('http') ? location.origin + location.pathname : 'https://www.asphaltcareservices.com/';
 
@@ -34,6 +43,8 @@
     hint: $('hint'), mute: $('mute'), logo: $('logo'), wordmark: $('wordmark'),
     overlay: $('overlay'), ovTitle: $('ov-title'), ovText: $('ov-text'),
     ovStats: $('ov-stats'), ovBtn: $('ov-btn'), shareBtn: $('share-btn'), toast: $('toast'),
+    lives: $('lives'), boardBtn: $('board-btn'), submitForm: $('submit-form'), playerName: $('player-name'),
+    submitBtn: $('submit-score'), submitMsg: $('submit-msg'), board: $('board'),
   };
 
   function loadImage(src, onload) {
@@ -61,11 +72,12 @@
   let poured = 0, used = 0, consumed = 0, supply = 1, frameWaste = 0;
   let heatSum = 0, heatCount = 0, conesHit = 0, coolTime = 30, brush = 20;
   let sawPrev = null, sawTravel = 0, sawOnLine = 0, sawCutting = false, sawSpin = 0;
-  let phase = 'intro';                // intro | cut | fill | roll | done | failed
+  let phase = 'intro';                // intro | cut | fill | roll | done | failed | gameover
   let pointer = { x: 0, y: 0, down: false, mouse: false };
   let roller = null;
   let truck = null;
   let lastResult = null;              // last finished level, for the share card
+  let lives = LIVES;
   let particles = [];
   let lastTime = performance.now();
 
@@ -460,6 +472,7 @@
     placeCones(roller);
     setPhase('cut');
     ui.level.textContent = level;
+    updateLives();
     ui.overlay.classList.add('hidden');
   }
 
@@ -510,7 +523,19 @@
   ui.ovBtn.addEventListener('click', () => {
     sound.init();
     if (phase === 'done') level++;
+    if (phase === 'gameover') {
+      level = 1;
+      score = 0;
+      lives = LIVES;
+      ui.score.textContent = score;
+    }
     startLevel();
+  });
+
+  ui.boardBtn.addEventListener('click', () => showBoard());
+  ui.submitForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    submitScore();
   });
 
   ui.shareBtn.addEventListener('click', shareScore);
@@ -777,6 +802,9 @@
   }
 
   function showOverlay(title, html, stats, button, shareable = false) {
+    ui.submitForm.hidden = true;
+    ui.board.hidden = true;
+    ui.boardBtn.hidden = false;
     ui.ovTitle.textContent = title;
     ui.ovText.innerHTML = html;
     ui.ovStats.innerHTML = stats;
@@ -879,14 +907,91 @@
     }
   }
 
+  function updateLives() {
+    ui.lives.textContent = '❤️'.repeat(lives) + '🖤'.repeat(LIVES - lives);
+    ui.lives.title = `${lives} ${lives === 1 ? 'life' : 'lives'} left`;
+  }
+
   function failLevel() {
-    setPhase('failed');
     pointer.down = false;
     sound.fail();
-    showOverlay('Out of asphalt!',
-      `<p>The truck ran dry with the ${holes.length > 1 ? 'potholes' : 'pothole'} ${Math.round(share('fill') * 100)}% full. ` +
-      'Keep the nozzle inside the hole so less spills onto the road.</p>',
-      '', 'Try again');
+    lives--;
+    updateLives();
+    const why = `<p>The truck ran dry with the ${holes.length > 1 ? 'potholes' : 'pothole'} ${Math.round(share('fill') * 100)}% full.</p>`;
+    if (lives > 0) {
+      setPhase('failed');
+      showOverlay('Out of asphalt!',
+        why + `<p>${lives} ${lives === 1 ? 'life' : 'lives'} left. Keep the nozzle inside the hole so less spills onto the road.</p>`,
+        '', 'Try again');
+      return;
+    }
+    setPhase('gameover');
+    showOverlay('Game over',
+      why + `<p>You reached level ${level} with <b>${score.toLocaleString()}</b> points.</p>`,
+      '', 'Play again');
+    if (score > 0) {
+      ui.submitForm.hidden = false;
+      ui.submitBtn.disabled = false;
+      ui.submitMsg.textContent = 'Add your score to the leaderboard';
+      ui.playerName.value = load(NAME_KEY, '');
+    }
+    showBoard();
+  }
+
+  // ---------- leaderboard ----------
+
+  async function rpc(fn, body) {
+    const res = await fetch(LEADERBOARD.url + fn, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: LEADERBOARD.key },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.message) || `HTTP ${res.status}`);
+    return data;
+  }
+
+  function escapeHtml(t) {
+    return String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  }
+
+  async function showBoard(highlight = null) {
+    ui.board.hidden = false;
+    ui.boardBtn.hidden = true;
+    ui.board.innerHTML = '<p class="board-note">Loading top scores…</p>';
+    try {
+      const rows = await rpc('top_scores', { p_limit: 10 });
+      ui.board.innerHTML = '<h2>🏆 Top scores</h2>' + (rows.length
+        ? '<ol>' + rows.map((r, i) =>
+          `<li class="${highlight && r.name === highlight.name && r.score === highlight.score ? 'me' : ''}">` +
+          `<span class="rank">${i + 1}</span><span class="who">${escapeHtml(r.name)}</span>` +
+          `<span class="lvl">L${r.level}</span><b>${r.score.toLocaleString()}</b></li>`).join('') + '</ol>'
+        : '<p class="board-note">No scores yet. Be the first!</p>');
+    } catch {
+      ui.board.innerHTML = '<p class="board-note">Couldn\'t reach the leaderboard. Check your connection.</p>';
+    }
+  }
+
+  async function submitScore() {
+    const name = ui.playerName.value.trim().replace(/\s+/g, ' ');
+    if (!/^[A-Za-z0-9 ]{2,12}$/.test(name)) {
+      ui.submitMsg.textContent = 'Use 2–12 letters, numbers or spaces';
+      return;
+    }
+    ui.submitBtn.disabled = true;
+    ui.submitMsg.textContent = 'Sending…';
+    try {
+      const [row] = await rpc('submit_score', { p_name: name, p_score: score, p_level: level });
+      save(NAME_KEY, name);
+      ui.submitForm.hidden = true;
+      toast(`You're #${row.out_rank} on the leaderboard!`);
+      showBoard({ name, score });
+    } catch (e) {
+      ui.submitBtn.disabled = false;
+      ui.submitMsg.textContent = /name not allowed/.test(e.message) ? 'Please pick a different name'
+        : /too many/.test(e.message) ? 'Too many scores sent. Try again in a minute'
+          : 'Couldn\'t send your score. Check your connection and try again';
+    }
   }
 
   function finishLevel() {
@@ -1319,6 +1424,7 @@
   ui.best.textContent = best;
   ui.hint.style.opacity = 0;
   updateMuteButton();
+  updateLives();
   for (const a of document.querySelectorAll('.js-estimate')) a.href = COMPANY.estimateUrl;
   for (const a of document.querySelectorAll('.js-phone')) {
     a.href = COMPANY.tel;

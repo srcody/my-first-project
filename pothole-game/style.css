@@ -209,6 +209,43 @@ canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
 }
 .ghost[hidden] { display: none; }
 
+.lives { letter-spacing: 1px; }
+
+.submit-form { margin: -4px 0 14px; }
+.submit-msg { font-size: 13px; color: #ccc; margin-bottom: 6px; }
+.submit-row { display: flex; gap: 6px; }
+.submit-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: 5px;
+  border: 2px solid var(--blue);
+  background: #fff;
+  color: var(--ink);
+  font: 600 16px "Open Sans", system-ui, sans-serif;  /* 16px stops iOS zooming in */
+  user-select: text;
+}
+.primary.small { padding: 9px 16px; font-size: 15px; }
+.primary:disabled { opacity: .6; }
+
+.board { text-align: left; margin: -4px 0 16px; }
+.board h2 { font-family: Poppins, sans-serif; font-size: 17px; text-align: center; margin-bottom: 6px; }
+.board ol { list-style: none; }
+.board li {
+  display: grid;
+  grid-template-columns: 26px 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.board li:nth-child(odd) { background: rgba(255,255,255,.04); }
+.board li.me { background: rgba(0,156,222,.25); }
+.board .rank { color: #888; font-weight: 700; }
+.board .lvl { color: #888; font-size: 12px; }
+.board-note { text-align: center; color: #aaa; font-size: 13px; }
+
 .contact { margin-top: 12px; font-size: 12px; color: #aaa; line-height: 1.5; }
 .contact a { color: var(--blue); font-weight: 700; font-size: 14px; text-decoration: none; }
 
