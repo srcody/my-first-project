@@ -243,3 +243,7 @@ canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
   .tools { padding: 8px; gap: 6px; }
   .meter { width: 64px; }
 }
+
+@media (max-width: 430px) {
+  .tool .lbl { display: none; }  /* icons only on narrow phones */
+}

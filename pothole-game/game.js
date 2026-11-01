@@ -2,12 +2,14 @@
 (() => {
   const CELL = 6;             // size of one simulation cell in world pixels
   const FILL_TARGET = 0.97;   // share of cells that must be full before rolling
-  const ROLL_TARGET = 0.97;   // share of cells that must be compacted to finish
+  const ROLL_TARGET = 0.95;   // share of cells that must be compacted to finish
   const ROLLED = 0.9;         // compaction at which a cell counts as rolled
   const POUR_RATE = 3.2;      // fill added per second at the centre of the nozzle
   const ROLLER_MAX = 380;     // top roller speed in px/s
   const DEAD_ZONE = 14;       // roller stops when the pointer is this close
   const CONE_R = 9;           // traffic cone radius
+  const CUT_TOL = 10;         // how close to the dashed line the saw must be to cut it
+  const CUT_TARGET = 0.97;    // share of the outline that must be cut
   const BEST_KEY = 'pothole-patrol-best';
   const MUTE_KEY = 'pothole-patrol-muted';
   const TRUCK_LANE = 112;     // top strip of road where the asphalt truck drives
@@ -27,7 +29,7 @@
   const $ = (id) => document.getElementById(id);
   const ui = {
     level: $('level'), time: $('time'), acc: $('acc'), score: $('score'), best: $('best'),
-    shovel: $('tool-shovel'), roller: $('tool-roller'),
+    saw: $('tool-saw'), shovel: $('tool-shovel'), roller: $('tool-roller'),
     bar: $('bar'), barLabel: $('bar-label'), meterIcon: $('meter-icon'), meterBar: $('meter-bar'),
     hint: $('hint'), mute: $('mute'), logo: $('logo'), wordmark: $('wordmark'),
     overlay: $('overlay'), ovTitle: $('ov-title'), ovText: $('ov-text'),
@@ -58,7 +60,8 @@
   let level = 1, score = 0, best = load(BEST_KEY, 0), elapsed = 0;
   let poured = 0, used = 0, consumed = 0, supply = 1, frameWaste = 0;
   let heatSum = 0, heatCount = 0, conesHit = 0, coolTime = 30, brush = 20;
-  let phase = 'intro';                // intro | fill | roll | done | failed
+  let sawPrev = null, sawTravel = 0, sawOnLine = 0, sawCutting = false, sawSpin = 0;
+  let phase = 'intro';                // intro | cut | fill | roll | done | failed
   let pointer = { x: 0, y: 0, down: false, mouse: false };
   let roller = null;
   let truck = null;
@@ -78,7 +81,7 @@
   // ---------- sound (synthesised with Web Audio, no files) ----------
 
   const sound = (() => {
-    let ac = null, master, pourGain, engineGain, engineOsc;
+    let ac = null, master, pourGain, engineGain, engineOsc, sawGain, sawOsc;
     let muted = load(MUTE_KEY, false);
 
     function init() {
@@ -122,6 +125,19 @@
       engineOsc.connect(elp).connect(trem).connect(engineGain).connect(master);
       engineOsc.start();
       lfo.start();
+
+      // concrete saw: a buzzing sawtooth that drops in pitch while it bites
+      sawOsc = ac.createOscillator();
+      sawOsc.type = 'sawtooth';
+      sawOsc.frequency.value = 190;
+      const bp = ac.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 1400;
+      bp.Q.value = 0.8;
+      sawGain = ac.createGain();
+      sawGain.gain.value = 0;
+      sawOsc.connect(bp).connect(sawGain).connect(master);
+      sawOsc.start();
     }
 
     function tone(type, from, to, dur, vol, delay = 0) {
@@ -148,6 +164,11 @@
         if (ac) master.gain.setTargetAtTime(muted ? 0 : 0.6, ac.currentTime, 0.02);
       },
       pour(on) { if (ac) pourGain.gain.setTargetAtTime(on ? 0.35 : 0, ac.currentTime, 0.05); },
+      saw(on, cutting) {
+        if (!ac) return;
+        sawGain.gain.setTargetAtTime(on ? 0.22 : 0, ac.currentTime, 0.04);
+        sawOsc.frequency.setTargetAtTime(cutting ? 140 : 190, ac.currentTime, 0.08);
+      },
       engine(on, speed) {
         if (!ac) return;
         const s = Math.min(1, Math.abs(speed) / ROLLER_MAX);
@@ -236,7 +257,7 @@
           const cx = sizes.length === 1 ? world.w / 2 : rand(reach + 20, world.w - reach - 20);
           const cy = rand(top + ry * 1.3, bottom - ry * 1.3);
           if (cx - reach < 0 || cx + reach > world.w || cy - ry * 1.3 < top || cy + ry * 1.3 > bottom) continue;
-          if (placed.some((p) => Math.hypot(p.cx - cx, p.cy - cy) < p.reach + reach + 60)) continue;
+          if (placed.some((p) => Math.abs(p.cx - cx) < p.reach + reach + 40 && Math.abs(p.cy - cy) < (p.ry + ry) * 1.3 + 40)) continue;
           placed.push({ cx, cy, rx, ry, reach });
           break;
         }
@@ -273,28 +294,55 @@
       hole.cracks.push(pts);
     }
 
-    // grid of cells covering the hole's bounding box; one pixel per cell in hole.img
-    const gx0 = Math.max(0, Math.floor((cx - rx * 1.4) / CELL));
-    const gy0 = Math.max(0, Math.floor((cy - ry * 1.4) / CELL));
-    const gx1 = Math.min(Math.ceil(world.w / CELL), Math.ceil((cx + rx * 1.4) / CELL));
-    const gy1 = Math.min(Math.ceil(world.h / CELL), Math.ceil((cy + ry * 1.4) / CELL));
+    // the saw-cut outline: the hole's bounding box, squared off to the cell grid
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let i = 0; i < 120; i++) {
+      const [x, y] = rimPoint(hole, i / 120 * Math.PI * 2);
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    }
+    hole.rect = {
+      x0: Math.floor(Math.max(CELL, minX - 10) / CELL) * CELL,
+      y0: Math.floor(Math.max(TRUCK_LANE + 6, minY - 10) / CELL) * CELL,
+      x1: Math.ceil(Math.min(world.w - CELL, maxX + 10) / CELL) * CELL,
+      y1: Math.ceil(Math.min(world.h - 32, maxY + 10) / CELL) * CELL,
+    };
+    const { x0, y0, x1, y1 } = hole.rect;
+    hole.guide = [];
+    const corners = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+    for (let k = 0; k < 4; k++) {
+      const [ax, ay] = corners[k], [bx, by] = corners[(k + 1) % 4];
+      const n = Math.max(1, Math.round(Math.hypot(bx - ax, by - ay) / 6));
+      for (let i = 0; i < n; i++) hole.guide.push({ x: ax + (bx - ax) * i / n, y: ay + (by - ay) * i / n, cut: false });
+    }
+
+    buildGrid(hole, cx - rx * 1.4, cy - ry * 1.4, cx + rx * 1.4, cy + ry * 1.4, (x, y) => {
+      const dx = (x - cx) / rx, dy = (y - cy) / ry;
+      const lim = edge(hole, Math.atan2(dy, dx));
+      const d = Math.hypot(dx, dy);
+      if (d >= lim) return null;
+      return { depth: d / lim, dy: dy / lim, n: Math.random(), shallow: false };
+    });
+    return hole;
+  }
+
+  // Build the hole's cells over a pixel box. cellFor(x, y) gives a cell's shading or null.
+  function buildGrid(hole, bx0, by0, bx1, by1, cellFor) {
+    // one pixel per cell in hole.img
+    const gx0 = Math.max(0, Math.floor(bx0 / CELL));
+    const gy0 = Math.max(0, Math.floor(by0 / CELL));
+    const gx1 = Math.min(Math.ceil(world.w / CELL), Math.ceil(bx1 / CELL));
+    const gy1 = Math.min(Math.ceil(world.h / CELL), Math.ceil(by1 / CELL));
     const gw = gx1 - gx0, gh = gy1 - gy0;
     const grid = new Array(gw * gh).fill(null);
     hole.cells = [];
     for (let j = 0; j < gh; j++) {
       for (let i = 0; i < gw; i++) {
         const x = (gx0 + i + 0.5) * CELL, y = (gy0 + j + 0.5) * CELL;
-        const dx = (x - cx) / rx, dy = (y - cy) / ry;
-        const lim = edge(hole, Math.atan2(dy, dx));
-        const d = Math.hypot(dx, dy);
-        if (d >= lim) continue;
-        const cell = {
-          idx: j * gw + i, cx: x, cy: y,
-          fill: 0, comp: 0, heat: 0,
-          depth: d / lim,           // 0 centre, 1 rim
-          dy: dy / lim,             // for rim shadow
-          n: Math.random(),         // per-cell noise
-        };
+        const shading = cellFor(x, y);
+        if (!shading) continue;
+        // depth: 0 centre, 1 rim; dy: for rim shadow; n: per-cell noise; shallow: sawn-out edge
+        const cell = { idx: j * gw + i, cx: x, cy: y, fill: 0, comp: 0, heat: 0, ...shading };
         grid[cell.idx] = cell;
         hole.cells.push(cell);
       }
@@ -321,7 +369,27 @@
     img.height = gh;
     Object.assign(hole, { gx0, gy0, gw, gh, grid, pads, img, imgCtx: img.getContext('2d') });
     hole.data = hole.imgCtx.createImageData(gw, gh);
-    return hole;
+  }
+
+  // Once the outline is cut, the broken asphalt comes out and the hole becomes the rectangle.
+  function squareOff(hole) {
+    const { x0, y0, x1, y1 } = hole.rect;
+    const old = { gx0: hole.gx0, gy0: hole.gy0, gw: hole.gw, gh: hole.gh, grid: hole.grid };
+    const hw = (x1 - x0) / 2, hh = (y1 - y0) / 2;
+    buildGrid(hole, x0, y0, x1, y1, (x, y) => {
+      const i = Math.floor(x / CELL) - old.gx0, j = Math.floor(y / CELL) - old.gy0;
+      const was = i >= 0 && j >= 0 && i < old.gw && j < old.gh && old.grid[j * old.gw + i];
+      if (was) return { depth: was.depth, dy: was.dy, n: was.n, shallow: false };
+      const dx = (x - x0 - hw) / hw, dy = (y - y0 - hh) / hh;
+      return { depth: Math.max(Math.abs(dx), Math.abs(dy)), dy, n: Math.random(), shallow: true };
+    });
+    hole.path = new Path2D();
+    hole.path.rect(x0, y0, x1 - x0, y1 - y0);
+    hole.squared = true;
+    for (let i = 0; i < 14; i++) {
+      const g = hole.guide[Math.floor(Math.random() * hole.guide.length)];
+      particles.push({ kind: 'steam', x: g.x, y: g.y, vx: rand(-15, 15), vy: rand(-30, -10), r: rand(4, 9), life: 1 });
+    }
   }
 
   function cellAt(x, y) {
@@ -344,6 +412,7 @@
         const dx = (x - o.cx) / o.rx, dy = (y - o.cy) / o.ry;
         return Math.hypot(dx, dy) < edge(o, Math.atan2(dy, dx)) + 70 / o.ry;
       })) continue;
+      if (holes.some(({ rect: r }) => x > r.x0 - 45 && x < r.x1 + 45 && y > r.y0 - 45 && y < r.y1 + 45)) continue;
       if (cones.some((c) => Math.hypot(c.x - x, c.y - y) < 110)) continue;
       if (Math.hypot(start.x - x, start.y - y) < 140) continue;
       cones.push({ x, y, knocked: false, vx: 0, vy: 0, rot: 0, vr: 0 });
@@ -360,11 +429,15 @@
     holes = placeHoles().map(makeHole);
     cells = holes.flatMap((h) => h.cells);
     brush = Math.min(34, 18 + level * 2);
-    // the truck carries a bit more than the holes need; the margin shrinks with level
-    supply = cells.length * Math.max(1.5, 1.9 - level * 0.04) * 1.1 * (level === 1 ? 1.15 : 1);  // extra for the first level
+    setSupply();
     coolTime = 25 + level * 6;
     const home = Math.max(90, Math.min(world.w - 90, world.w * 0.35));
     truck = { x: home, y: TRUCK_LANE / 2 + 2, home, wheel: 0 };
+  }
+
+  // the truck carries a bit more than the holes need; the margin shrinks with level
+  function setSupply() {
+    supply = cells.length * Math.max(1.5, 1.9 - level * 0.04) * 1.1 * (level === 1 ? 1.15 : 1);  // extra for the first level
   }
 
   function startLevel() {
@@ -376,24 +449,34 @@
     heatSum = 0;
     heatCount = 0;
     conesHit = 0;
+    sawPrev = null;
+    sawTravel = 0;
+    sawOnLine = 0;
     particles = [];
     truck.x = -110;  // the truck drives in at the start of each level
     // park the roller left of the leftmost hole, or on the left edge
     const first = holes.reduce((a, b) => (a.cx - a.rx < b.cx - b.rx ? a : b));
     roller = { x: Math.max(55, first.cx - first.rx * 1.3 - 70), y: first.cy, angle: 0, speed: 0, phase: 0 };
     placeCones(roller);
-    setPhase('fill');
+    setPhase('cut');
     ui.level.textContent = level;
     ui.overlay.classList.add('hidden');
   }
 
   function setPhase(p) {
     phase = p;
+    ui.saw.classList.toggle('active', p === 'cut');
+    ui.saw.classList.toggle('done', p === 'fill' || p === 'roll' || p === 'done');
     ui.shovel.classList.toggle('active', p === 'fill');
     ui.shovel.classList.toggle('done', p === 'roll' || p === 'done');
     ui.roller.classList.toggle('active', p === 'roll');
     ui.roller.classList.toggle('done', p === 'done');
-    ui.hint.style.opacity = p === 'fill' || p === 'roll' ? 1 : 0;
+    ui.hint.style.opacity = p === 'cut' || p === 'fill' || p === 'roll' ? 1 : 0;
+    if (p === 'cut') {
+      ui.hint.textContent = holes.length > 1
+        ? `Saw along the dashed lines around all ${holes.length} potholes`
+        : 'Saw along the dashed lines to square off the pothole';
+    }
     ui.meterIcon.textContent = p === 'roll' || p === 'done' ? '🌡️' : '🚚';
     ui.meterIcon.parentElement.title = p === 'roll' || p === 'done' ? 'Asphalt temperature' : 'Asphalt left in the truck';
     if (p === 'fill') {
@@ -456,6 +539,73 @@
     let sum = 0, n = 0;
     for (const c of cells) if (c.comp < 1) { sum += c.heat; n++; }
     return n ? sum / n : 0;
+  }
+
+  // distance from a point to the nearest dashed outline
+  function lineDist(x, y) {
+    let best = Infinity;
+    for (const { rect: r } of holes) {
+      const ox = Math.max(r.x0 - x, 0, x - r.x1), oy = Math.max(r.y0 - y, 0, y - r.y1);
+      const d = ox || oy ? Math.hypot(ox, oy) : Math.min(x - r.x0, r.x1 - x, y - r.y0, r.y1 - y);
+      best = Math.min(best, d);
+    }
+    return best;
+  }
+
+  function cutShare() {
+    let n = 0, cut = 0;
+    for (const h of holes) for (const g of h.guide) { n++; if (g.cut) cut++; }
+    return n ? cut / n : 1;
+  }
+
+  function precision() { return sawTravel > 0 ? sawOnLine / sawTravel : 1; }
+
+  function updateCut(dt) {
+    sawCutting = false;
+    if (!pointer.down) { sawPrev = null; return; }
+    sawSpin += dt * 40;
+    const cur = { x: pointer.x, y: pointer.y };
+    if (!sawPrev) { sawPrev = cur; return; }
+    // walk the saw from its last spot in short steps so fast drags still cut
+    const len = Math.hypot(cur.x - sawPrev.x, cur.y - sawPrev.y);
+    const steps = Math.ceil(len / 4);
+    const sg = spill.getContext('2d');
+    for (let k = 1; k <= steps; k++) {
+      const px = sawPrev.x + (cur.x - sawPrev.x) * (k - 1) / steps, py = sawPrev.y + (cur.y - sawPrev.y) * (k - 1) / steps;
+      const qx = sawPrev.x + (cur.x - sawPrev.x) * k / steps, qy = sawPrev.y + (cur.y - sawPrev.y) * k / steps;
+      const l = len / steps;
+      sawTravel += l;
+      if (lineDist(qx, qy) < CUT_TOL) {
+        sawOnLine += l;
+        sawCutting = true;
+        for (const h of holes) {
+          for (const g of h.guide) if (!g.cut && Math.abs(g.x - qx) < CUT_TOL && Math.abs(g.y - qy) < CUT_TOL) g.cut = true;
+        }
+      } else {
+        // sawing off the line scars the road
+        sg.strokeStyle = 'rgba(20,20,22,0.8)';
+        sg.lineWidth = 2;
+        sg.beginPath();
+        sg.moveTo(px, py);
+        sg.lineTo(qx, qy);
+        sg.stroke();
+      }
+    }
+    if (len > 0 && Math.random() < 0.6) {
+      particles.push({ kind: 'steam', x: cur.x + rand(-6, 6), y: cur.y + rand(-6, 6), vx: rand(-30, 30), vy: rand(-30, 10), r: rand(2, 4), life: 0.7 });
+    }
+    sawPrev = cur;
+    if (cutShare() >= CUT_TARGET) {
+      for (const h of holes) {
+        for (const g of h.guide) g.cut = true;
+        squareOff(h);
+      }
+      cells = holes.flatMap((h) => h.cells);
+      setSupply();
+      pointer.down = false;  // make the player press again to pour
+      sound.thunk();
+      setPhase('fill');
+    }
   }
 
   function updateFill(dt) {
@@ -745,12 +895,14 @@
     sound.ding();
     const acc = accuracy();
     const hot = heatCount ? heatSum / heatCount : 0;
+    const prec = precision();
+    const cutPts = Math.round(prec * 300 * level);
     const accPts = Math.round(acc * 600 * level);
     const hotPts = Math.round(hot * 400 * level);
     const timePts = Math.max(0, Math.round(level * 400 - elapsed * 8));
     const conePts = conesHit * 100;
-    const total = Math.max(0, accPts + hotPts + timePts - conePts);
-    const quality = (acc + hot) / 2 - conesHit * 0.1;
+    const total = Math.max(0, cutPts + accPts + hotPts + timePts - conePts);
+    const quality = (prec + acc + hot) / 3 - conesHit * 0.1;
     const stars = quality >= 0.75 ? 3 : quality >= 0.55 ? 2 : 1;
     score += total;
     const newBest = score > best;
@@ -765,6 +917,7 @@
       `<div class="stars">${'★'.repeat(stars)}<span class="off">${'★'.repeat(3 - stars)}</span></div>` +
       (newBest ? '<div class="new-best">New best score!</div>' : '') +
       '<p>The next potholes are bigger.</p>',
+      row('Cut precision', `${Math.round(prec * 100)}%`, `+${cutPts}`) +
       row('Fill accuracy', `${Math.round(acc * 100)}%`, `+${accPts}`) +
       row('Rolled while hot', `${Math.round(hot * 100)}%`, `+${hotPts}`) +
       row('Speed', `${elapsed.toFixed(1)}s`, `+${timePts}`) +
@@ -774,7 +927,8 @@
   }
 
   function update(dt) {
-    if (phase === 'fill' || phase === 'roll') elapsed += dt;
+    if (phase === 'cut' || phase === 'fill' || phase === 'roll') elapsed += dt;
+    if (phase === 'cut') updateCut(dt);
     if (phase === 'fill') updateFill(dt);
     if (roller && (phase === 'roll' || phase === 'done')) updateRoll(dt);
     updateTruck(dt);
@@ -788,19 +942,21 @@
     particles = particles.filter((p) => (p.kind === 'chunk' ? p.y < p.ty : p.life > 0));
 
     sound.pour(phase === 'fill' && pointer.down);
+    sound.saw(phase === 'cut' && pointer.down, sawCutting);
     sound.engine(phase === 'roll' || (phase === 'done' && Math.abs(roller.speed) > 5), roller ? roller.speed : 0);
 
     ui.time.textContent = elapsed.toFixed(1);
-    ui.acc.textContent = phase === 'intro' ? '–' : `${Math.round(accuracy() * 100)}%`;
+    ui.acc.textContent = phase === 'intro' ? '–' : `${Math.round((phase === 'cut' ? precision() : accuracy()) * 100)}%`;
     let pct = 0, label = '';
-    if (phase === 'fill' || phase === 'failed') { pct = share('fill') / FILL_TARGET; label = 'Fill'; }
+    if (phase === 'cut') { pct = cutShare() / CUT_TARGET; label = 'Cut'; }
+    else if (phase === 'fill' || phase === 'failed') { pct = share('fill') / FILL_TARGET; label = 'Fill'; }
     else if (phase === 'roll') { pct = share('comp', ROLLED) / ROLL_TARGET; label = 'Roll'; }
     else if (phase === 'done') { pct = 1; label = 'Done'; }
     pct = Math.min(1, pct);
     ui.bar.style.width = `${pct * 100}%`;
     ui.barLabel.textContent = label ? `${label} ${Math.floor(pct * 100)}%` : '';
 
-    const meter = phase === 'roll' ? patchHeat() : phase === 'done' ? 0 : phase === 'intro' ? 1 : truckLeft();
+    const meter = phase === 'cut' ? 1 : phase === 'roll' ? patchHeat() : phase === 'done' ? 0 : phase === 'intro' ? 1 : truckLeft();
     ui.meterBar.style.width = `${meter * 100}%`;
     ui.meterBar.classList.toggle('low', meter < 0.25);
     ui.meterBar.style.background = phase === 'roll' ? `hsl(${10 + (1 - meter) * 200}, 75%, 55%)` : '';
@@ -814,8 +970,10 @@
     const glow = phase === 'fill' ? 0.5 + 0.2 * Math.sin(performance.now() / 180) : 0;
     const put = (idx, c) => {
       // empty hole: dirty gravel, darker under the rim
-      const shade = 0.55 + 0.35 * ((c.dy + 1) / 2) + 0.1 * c.depth;
-      const hr = (60 + c.n * 25) * shade, hg = (52 + c.n * 20) * shade, hb = (42 + c.n * 15) * shade;
+      // the sawn-out margin is shallow, lighter base gravel
+      const shade = c.shallow ? 0.8 + 0.2 * ((c.dy + 1) / 2) : 0.55 + 0.35 * ((c.dy + 1) / 2) + 0.1 * c.depth;
+      const base = c.shallow ? [92, 88, 80] : [60, 52, 42];
+      const hr = (base[0] + c.n * 25) * shade, hg = (base[1] + c.n * 20) * shade, hb = (base[2] + c.n * 15) * shade;
       // fresh loose asphalt: lumpy and grey with a warm tint while hot; compacted: smooth and black
       const lump = (c.n - 0.5) * 40, sm = (c.n - 0.5) * 6, warm = c.heat * (1 - c.comp) * 14;
       const ar = 78 + lump + warm + (30 + sm - 78 - lump) * c.comp;
@@ -981,6 +1139,65 @@
     ctx.fill();
   }
 
+  function drawGuide(hole) {
+    const { x0, y0, x1, y1 } = hole.rect;
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 6]);
+    ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    ctx.setLineDash([]);
+    // finished cuts: a dark kerf with a pale edge of fresh dust
+    const g = hole.guide;
+    ctx.lineCap = 'round';
+    for (const [w, col] of [[5, 'rgba(210,210,205,0.5)'], [2.5, '#111']]) {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = w;
+      ctx.beginPath();
+      for (let i = 0; i < g.length; i++) {
+        const a = g[i], b = g[(i + 1) % g.length];
+        if (a.cut && b.cut) { ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); }
+      }
+      ctx.stroke();
+    }
+  }
+
+  function drawSaw() {
+    // a hand-held cut-off saw seen from above: red guard over a spinning blade
+    ctx.save();
+    ctx.translate(pointer.x, pointer.y);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.arc(3, 4, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.save();
+    ctx.rotate(sawSpin);
+    ctx.fillStyle = '#b8bcc2';
+    ctx.beginPath();
+    for (let i = 0; i < 24; i++) {
+      const a = i / 24 * Math.PI * 2, r = i % 2 ? 13 : 15;
+      ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#7d8187';
+    ctx.fillRect(-9, -1, 18, 2);
+    ctx.restore();
+    ctx.fillStyle = '#fe130f';
+    ctx.beginPath();
+    ctx.arc(0, 0, 16, Math.PI * 0.9, Math.PI * 2.1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#2b2e33';
+    ctx.fillRect(-5, -34, 10, 22);
+    ctx.fillStyle = '#fe130f';
+    ctx.fillRect(-8, -42, 16, 9);
+    ctx.fillStyle = '#ddd';
+    ctx.beginPath();
+    ctx.arc(0, 0, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   function drawTruck() {
     ctx.save();
     ctx.translate(truck.x, truck.y);
@@ -1047,6 +1264,7 @@
       }
     }
     for (const hole of holes) paintHole(hole);
+    if (phase === 'cut' || phase === 'intro') for (const hole of holes) drawGuide(hole);
 
     for (const p of particles) {
       if (p.kind !== 'chunk') continue;
@@ -1072,6 +1290,8 @@
       ctx.stroke();
       ctx.setLineDash([]);
     }
+
+    if (phase === 'cut' && (pointer.down || pointer.mouse)) drawSaw();
 
     if (roller && (phase === 'roll' || phase === 'done')) drawRoller();
 

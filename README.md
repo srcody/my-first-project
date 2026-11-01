@@ -23,9 +23,10 @@ There is no build step. Drag this folder into Netlify, or connect the repo with 
 
 ## Pothole Patrol (mini game)
 
-`pothole-game/` holds a small browser game. Hold and drag to pour asphalt into the potholes, then drag the roller over the patches until they're smooth. Open `pothole-game/index.html` in a browser to play (works with mouse or touch).
+`pothole-game/` holds a small browser game. Saw along the dashed lines to square off each pothole, hold and drag to pour asphalt into it, then drag the roller over the patch until it's smooth. Open `pothole-game/index.html` in a browser to play (works with mouse or touch).
 
 - Potholes get bigger every level; from level 3 there are two, and from level 6 three.
+- Cut precision: sawing off the dashed line scars the road and lowers the score.
 - Fill accuracy: asphalt spilled on the road lowers your score and empties the truck. Run out before the holes are full and you redo the level.
 - Asphalt cools after it's poured. Hot asphalt flattens faster and earns a bonus.
 - Traffic cones appear from level 2; each one the roller knocks over costs points.
