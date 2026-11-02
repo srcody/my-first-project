@@ -289,7 +289,11 @@
     else if (e.code === "KeyV") { S.overlay = (S.overlay + 1) % 4; say(`Overlay: ${["off", "cut depth", "compaction", "mat temperature"][S.overlay]}.`); }
     else if (e.code === "KeyN") cure();
     else if (e.code === "KeyI") inspect();
-    else if (e.code === "KeyR") { if (confirm("Restart the job from bare grass?")) reset(); }
+    else if (e.code === "KeyR") {
+      const now = performance.now();
+      if (now - (S.restartAsk || 0) < 2500) reset();
+      else { S.restartAsk = now; say("Press R again to restart the job from bare grass."); }
+    }
   });
   addEventListener("keyup", (e) => {
     if (KEYMAP[e.code]) keys[KEYMAP[e.code]] = false;
