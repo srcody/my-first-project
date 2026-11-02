@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1b1d20">
+  <title>Lot Builder</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2322252a'/%3E%3Cpath d='M14 12v40M26 12v40M38 12v40M50 12v40' stroke='%23f4f1e8' stroke-width='4'/%3E%3Crect x='14' y='40' width='12' height='12' fill='%233b7bd8'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>Lot Builder</h1>
+      <p class="ticket">Work order <b>#4108</b> · Harbor Pines Plaza · 15 × 9 lot · 29 stalls (2 accessible)</p>
+    </div>
+    <div class="clock"><span id="day">Day 1</span> · <span id="time">00:00</span></div>
+  </header>
+
+  <main class="layout">
+    <section class="stage">
+      <canvas id="game" width="880" height="520" aria-label="Top-down view of the job site"></canvas>
+      <div class="hint" id="hint"></div>
+      <div class="touch" aria-hidden="true">
+        <div class="pad">
+          <button data-k="up">▲</button>
+          <button data-k="left">◀</button>
+          <button data-k="down">▼</button>
+          <button data-k="right">▶</button>
+        </div>
+        <div class="touch-actions">
+          <button data-k="switch">Next machine</button>
+          <button data-k="action" class="big">Action</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <section class="card">
+        <h2>Machine</h2>
+        <div class="machines" id="machines"></div>
+        <div class="status" id="status"></div>
+      </section>
+
+      <section class="card">
+        <h2>Under the tool</h2>
+        <dl class="readout" id="readout"></dl>
+      </section>
+
+      <section class="card">
+        <h2>Job phases</h2>
+        <ol class="phases" id="phases"></ol>
+      </section>
+
+      <section class="card">
+        <h2>Radio</h2>
+        <ul class="log" id="log"></ul>
+      </section>
+
+      <section class="card">
+        <h2>Inspection</h2>
+        <div class="row">
+          <button id="cure">Cure overnight (N)</button>
+          <button id="inspect" class="primary">Call inspector (I)</button>
+        </div>
+        <div id="report" class="report"><p class="muted">No inspection yet.</p></div>
+      </section>
+
+      <details class="card help" open>
+        <summary>Controls &amp; specs</summary>
+        <ul class="keys">
+          <li><kbd>W A S D</kbd> / arrows: drive and steer (<kbd>Shift</kbd> to crawl)</li>
+          <li><kbd>1</kbd>–<kbd>7</kbd>: switch machine · <kbd>Tab</kbd>: next</li>
+          <li><kbd>Space</kbd>: work tool (dig, spread, screed, spray, place) or load and unload at a truck</li>
+          <li><kbd>G</kbd>: grade control · <kbd>C</kbd>: paint color · <kbd>V</kbd>: overlay</li>
+          <li><kbd>N</kbd>: cure overnight · <kbd>I</kbd>: inspection · <kbd>R</kbd>: restart</li>
+        </ul>
+        <p class="specs">Specs: cut 4–6″ · subgrade ≥ 95% Proctor · stone base 2–3″ at ≥ 95% · surface ~2″ at ≥ 92% Gmm · steel breakdown above 200°F · pneumatic finish above 160°F.</p>
+      </details>
+    </aside>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>
