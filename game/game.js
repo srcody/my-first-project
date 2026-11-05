@@ -1871,7 +1871,7 @@ function showResults() {
     <div class="line"><span>Quality adjustment (${score}%)</span><span>${qAdj < 0 ? '−' + money(-qAdj) : money(qAdj)}</span></div>
     <div class="line"><span>Equipment rental</span><span>${G.jobRent ? '−' + money(G.jobRent) : '$0'}</span></div>
     <div class="line total"><span>NET PROFIT</span><span>${net < 0 ? '−' + money(-net) : money(net)}</span></div>`;
-  C.cash += payout;
+  C.cash += payout - G.jobRent;
   C.jobsDone++;
   C.earned += net;
   C.board = C.board.filter((j) => j.id !== job.id);
@@ -1903,15 +1903,16 @@ const START_CASH = 7000;
 const tierPrice = (type, t) => Math.round((MACHINES[type].price * TIERS[t - 1].mult) / 100) * 100;
 const resale = (type, t) => Math.round((tierPrice(type, t) * 0.5) / 100) * 100;
 const upgradeCost = (type, owned) => tierPrice(type, owned + 1) - (owned ? resale(type, owned) : 0);
-const rentCost = (type) => Math.round((MACHINES[type].price * RENT_RATE) / 50) * 50;
+// rental cost scales with the size of the lot (bigger lot = more days on rent)
+const rentCost = (type, job) => Math.round((MACHINES[type].price * RENT_RATE * Math.max(0.4, (job ? job.w * job.d : 168) / 168)) / 50) * 50;
 const RATES = [50, 40, 110, 25, 30]; // $ per m2 for each step
 const JOB_TYPES = [
-  { name: 'Seal coat', steps: [4], minJobs: 0, w: 5, blurb: 'Faded, worn lot. Spray a fresh coat of sealer.' },
-  { name: 'Repave', steps: [2, 3], minJobs: 1, w: 3, blurb: 'Old asphalt is milled off. Lay a new mat on the base and roll it.' },
-  { name: 'Repave & seal', steps: [2, 3, 4], minJobs: 2, w: 3, blurb: 'New mat on the existing base, rolled and sealed.' },
-  { name: 'Base & pave', steps: [1, 2, 3], minJobs: 3, w: 2, blurb: 'Ground is already dug out. Spread stone, pave and roll.' },
-  { name: 'New lot', steps: [0, 1, 2, 3], minJobs: 4, w: 2, blurb: 'Grass field to finished blacktop.' },
-  { name: 'Full build', steps: [0, 1, 2, 3, 4], minJobs: 4, w: 2, blurb: 'The whole job: dig, base, pave, roll and seal.' },
+  { name: 'Seal coat', steps: [4], minJobs: 0, w: 3, blurb: 'Faded, worn lot. Spray a fresh coat of sealer.' },
+  { name: 'Repave', steps: [2, 3], minJobs: 0, w: 3, blurb: 'Old asphalt is milled off. Lay a new mat on the base and roll it.' },
+  { name: 'Repave & seal', steps: [2, 3, 4], minJobs: 0, w: 2.5, blurb: 'New mat on the existing base, rolled and sealed.' },
+  { name: 'Base & pave', steps: [1, 2, 3], minJobs: 0, w: 2, blurb: 'Ground is already dug out. Spread stone, pave and roll.' },
+  { name: 'New lot', steps: [0, 1, 2, 3], minJobs: 0, w: 1.5, blurb: 'Grass field to finished blacktop.' },
+  { name: 'Full build', steps: [0, 1, 2, 3, 4], minJobs: 0, w: 1.5, blurb: 'The whole job: dig, base, pave, roll and seal.' },
 ];
 const SIZES = [[10, 6], [12, 8], [14, 8], [17, 10], [20, 12], [24, 14]];
 const CLIENTS = ['Corner Market', 'Lakeside Church', 'Hometown Pizza', 'Oak St Apartments', 'Riverside Library', 'Sunrise Diner',
@@ -1923,7 +1924,7 @@ function makeJob() {
   const types = JOB_TYPES.filter((t) => t.minJobs <= done);
   let tot = types.reduce((a, t) => a + t.w, 0), r = Math.random() * tot, type = types[0];
   for (const t of types) { if ((r -= t.w) <= 0) { type = t; break; } }
-  const maxSize = Math.min(SIZES.length - 1, 1 + Math.floor(done / 1.5));
+  const maxSize = Math.min(SIZES.length - 1, 2 + Math.floor(done / 1.5));
   const [w, d] = SIZES[Math.floor(Math.random() * (maxSize + 1))];
   const rate = type.steps.reduce((a, st) => a + RATES[st], 0);
   const complexity = 1 + 0.12 * (type.steps.length - 1);
@@ -1932,6 +1933,13 @@ function makeJob() {
 }
 function refillBoard() {
   while (C.board.length < 5) C.board.push(makeJob());
+  // keep a mix on the board: at least three jobs that aren't plain seal coating
+  let tries = 0;
+  while (C.board.filter((j) => j.steps.length > 1).length < 3 && tries++ < 40) {
+    const i = C.board.findIndex((j) => j.steps.length === 1);
+    const j = makeJob();
+    if (j.steps.length > 1 && i >= 0) C.board[i] = j;
+  }
   if (!C.board.some((j) => j.steps.length === 1)) { // always keep a starter seal job available
     const j = makeJob(); j.type = 'Seal coat'; j.steps = [4]; j.blurb = JOB_TYPES[0].blurb;
     j.pay = Math.round((j.w * j.d * RATES[4]) / 50) * 50; C.board[C.board.length - 1] = j;
@@ -1939,13 +1947,14 @@ function refillBoard() {
   C.board.sort((a, b) => a.pay - b.pay);
 }
 function newCareer() {
-  C = { cash: START_CASH, owned: {}, jobsDone: 0, earned: 0, day: 1, nextId: 1, board: [] };
+  C = { v: 2, cash: START_CASH, owned: {}, jobsDone: 0, earned: 0, day: 1, nextId: 1, board: [] };
   refillBoard();
   saveCareer();
 }
 function loadCareer() {
   try { C = JSON.parse(localStorage.getItem(CAREER_KEY) || 'null'); } catch (e) { C = null; }
   if (!C || !Array.isArray(C.board)) newCareer();
+  else if (C.v !== 2) { C.v = 2; C.board = []; refillBoard(); saveCareer(); } // older saves: refresh the board with the new job mix
 }
 function saveCareer() { try { localStorage.setItem(CAREER_KEY, JSON.stringify(C)); } catch (e) { /* storage unavailable */ } }
 
@@ -1967,7 +1976,7 @@ function renderOffice() {
   for (const b of document.querySelectorAll('#officeTabs button')) b.classList.toggle('on', b.dataset.tab === officeTab && !detailJob);
   const ownedAny = Object.keys(C.owned).length > 0;
   let msg = '';
-  if (!ownedAny && C.jobsDone === 0) msg = `Welcome to the business! You have <b>${money(C.cash)}</b>. Buy a <b>Mk I sealcoat truck</b> (${money(tierPrice('sealer', 1))}) under Equipment, then take a <b>Seal coat</b> job.`;
+  if (!ownedAny && C.jobsDone === 0) msg = `Welcome to the business! You have <b>${money(C.cash)}</b>. Buy a <b>Mk I sealcoat truck</b> (${money(tierPrice('sealer', 1))}) under Equipment, then take a <b>Seal coat</b> job. Bigger jobs are open too: rent the machines you don't own, and the rental comes out of the pay.`;
   $('officeMsg').innerHTML = msg;
   $('officeMsg').classList.toggle('hidden', !msg);
   show('jobsTab', officeTab === 'jobs' && !detailJob);
@@ -1977,7 +1986,7 @@ function renderOffice() {
   if (officeTab === 'jobs') {
     $('jobsTab').innerHTML = C.board.map((j) => {
       const need = [...new Set(j.steps.map((st) => STAGE_MACHINE[st]))];
-      const rent = need.filter((t) => !C.owned[t]).reduce((a, t) => a + rentCost(t), 0);
+      const rent = need.filter((t) => !C.owned[t]).reduce((a, t) => a + rentCost(t, j), 0);
       return `<button class="job-card" data-id="${j.id}">
         <div class="jc-top"><b>${j.client}</b><span class="pay">${money(j.pay)}</span></div>
         <div class="jc-type">${j.type} · ${j.w} × ${j.d} m</div>
@@ -1993,7 +2002,7 @@ function renderOffice() {
       const cost = next ? upgradeCost(type, t) : 0;
       const stats = (T) => type === 'excavator' ? `${T.spd}× speed · ${T.cap}× bucket · ${T.dig} m bite` : `${T.spd}× speed · ${T.cap}× load · ${T.wid}× tool width`;
       return `<div class="gear-row">
-        <div class="gear-info"><b>${M0.name}</b><span>${t ? `Owned: <em>${TIERS[t - 1].label}</em> · ${stats(TIERS[t - 1])}` : `Not owned · rent for ${money(rentCost(type))} per job`}</span>
+        <div class="gear-info"><b>${M0.name}</b><span>${t ? `Owned: <em>${TIERS[t - 1].label}</em> · ${stats(TIERS[t - 1])}` : `Not owned · rent from ${money(rentCost(type, { w: 10, d: 6 }))} per job (more for big lots)`}</span>
         ${next ? `<span class="next">${next.label}: ${stats(next)}</span>` : '<span class="next">Top of the line</span>'}</div>
         <div class="gear-btns">
           ${next ? `<button class="buy-btn" data-buy="${type}" ${C.cash >= cost ? '' : 'disabled'}>${t ? 'UPGRADE' : 'BUY'} ${money(cost)}</button>` : ''}
@@ -2027,48 +2036,48 @@ function renderJobDetail() {
   const rows = need.map((type) => {
     const t = C.owned[type];
     if (t) return `<div class="eq-row"><span><b>${MACHINES[type].name}</b><i>${MACHINES[type].what}</i></span><span class="owned">✓ Owned · ${TIERS[t - 1].label}</span></div>`;
-    if (plan[type] === 'rent') rent += rentCost(type); else ready = false;
+    if (plan[type] === 'rent') rent += rentCost(type, j); else ready = false;
     const bc = tierPrice(type, 1);
     return `<div class="eq-row"><span><b>${MACHINES[type].name}</b><i>${MACHINES[type].what}</i></span><span class="eq-btns">
-      <button class="${plan[type] === 'rent' ? 'on' : ''}" data-rent="${type}">RENT ${money(rentCost(type))}</button>
+      <button class="${plan[type] === 'rent' ? 'on' : ''}" data-rent="${type}">RENT ${money(rentCost(type, j))}</button>
       <button data-buyj="${type}" ${C.cash >= bc ? '' : 'disabled'}>BUY ${money(bc)}</button></span></div>`;
   }).join('');
-  const afford = C.cash >= rent;
   $('jobDetail').innerHTML = `<button class="back-btn" id="jdBack">◀ Job board</button>
     <h3>${j.client}</h3>
     <div class="jc-type">${j.type} · ${j.w} × ${j.d} m lot</div>
     <p class="jd-blurb">${j.blurb}</p>
     <div class="chips">${stepChips(j.steps)}</div>
     <div class="eq-head">EQUIPMENT</div>${rows}
-    <div class="jd-sum"><div><span>Contract</span><b>${money(j.pay)}</b></div><div><span>Rentals (paid up front)</span><b>${rent ? '−' + money(rent) : '$0'}</b></div><div class="tot"><span>Profit at 100% quality</span><b>${money(j.pay - rent)}</b></div></div>
-    <p class="muted">Pay drops by up to 30% for a sloppy job. Rentals are always Mk I.</p>
-    <button class="big-btn" id="jdStart" ${ready && afford ? '' : 'disabled'}>${!ready ? 'RENT OR BUY THE EQUIPMENT' : afford ? 'TAKE THE JOB' : 'NOT ENOUGH CASH FOR RENTALS'}</button>`;
+    <div class="jd-sum"><div><span>Contract</span><b>${money(j.pay)}</b></div><div><span>Rentals (taken out of the pay)</span><b>${rent ? '−' + money(rent) : '$0'}</b></div><div class="tot"><span>Profit at 100% quality</span><b>${money(j.pay - rent)}</b></div></div>
+    <p class="muted">Pay drops by up to 30% for a sloppy job. Rentals are Mk I and get billed on the invoice. Bigger lots mean more rental days.</p>
+    <button class="big-btn" id="jdStart" ${ready ? '' : 'disabled'}>${ready ? 'TAKE THE JOB' : 'RENT OR BUY THE EQUIPMENT'}</button>`;
   $('jdBack').addEventListener('click', () => { detailJob = null; renderOffice(); });
   for (const b of $('jobDetail').querySelectorAll('[data-rent]')) b.addEventListener('click', () => { const t = b.dataset.rent; plan[t] = plan[t] === 'rent' ? null : 'rent'; Sound.click(); renderJobDetail(); });
   for (const b of $('jobDetail').querySelectorAll('[data-buyj]')) b.addEventListener('click', () => { buyMachine(b.dataset.buyj); });
-  $('jdStart').addEventListener('click', () => { if (ready && afford) takeJob(j, need); });
+  $('jdStart').addEventListener('click', () => { if (ready) takeJob(j, need); });
 }
 function takeJob(job, need) {
   G.job = { ...job, tiers: {}, rented: {} };
   let rent = 0;
   for (const t of need) {
     if (C.owned[t]) G.job.tiers[t] = C.owned[t];
-    else { G.job.tiers[t] = 1; G.job.rented[t] = true; rent += rentCost(t); }
+    else { G.job.tiers[t] = 1; G.job.rented[t] = true; rent += rentCost(t, job); }
   }
-  C.cash -= rent;
-  G.jobRent = rent;
+  G.jobRent = rent; // billed on the invoice when the job is done
   saveCareer();
   show('office', false);
   Sound.init();
   startJob();
 }
 function abandonJob() {
+  const fee = G.jobRent || 0;
+  C.cash -= fee;
   resetJob();
-  G.job = null;
+  G.job = null; G.jobRent = 0;
   C.day++;
   saveCareer();
   openOffice('jobs');
-  toast('Job abandoned. Rental fees are not refunded.', 'warn', 3);
+  toast(fee ? `Job abandoned. You still owe ${money(fee)} in rentals.` : 'Job abandoned.', 'warn', 3);
 }
 
 // ---------------------------------------------------------------- reset / start
