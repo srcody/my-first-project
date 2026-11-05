@@ -1902,7 +1902,7 @@ const TIERS = [
   { label: 'Mk II', mult: 2.2, spd: 1.2, cap: 1.5, wid: 1.25, dig: 2.4 },
   { label: 'Mk III', mult: 4, spd: 1.4, cap: 2.2, wid: 1.5, dig: 2.8 },
 ];
-const RENT_RATE = 0.12;
+const RENT_RATE = 0.144; // 12% + 20%
 const START_CASH = 7000;
 const tierPrice = (type, t) => Math.round((MACHINES[type].price * TIERS[t - 1].mult) / 100) * 100;
 const resale = (type, t) => Math.round((tierPrice(type, t) * 0.5) / 100) * 100;

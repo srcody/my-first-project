@@ -46,7 +46,7 @@ Every stage takes one pass per spot, and a step finishes on its own once 97% of 
 | New lot | Dig, base, pave, roll |
 | Full build | Dig, base, pave, roll, seal |
 
-Each job needs the machine for every step. You can **buy** it, or **rent** a Mk I for the job. Rent comes out of the job's pay on the invoice. It costs about 12% of the machine's price, more for big lots and less for small ones, so you can take any job from day one. Bought machines can be upgraded to Mk II and Mk III, which drive faster, carry more and have wider tools. Upgrades trade in the old machine at half price. Pay drops by up to 30% for a sloppy job. Bigger and more complex jobs show up as you complete more work. Your career saves in the browser.
+Each job needs the machine for every step. You can **buy** it, or **rent** a Mk I for the job. Rent comes out of the job's pay on the invoice. It costs about 14.4% of the machine's price, more for big lots and less for small ones, so you can take any job from day one. Bought machines can be upgraded to Mk II and Mk III, which drive faster, carry more and have wider tools. Upgrades trade in the old machine at half price. Pay drops by up to 30% for a sloppy job. Bigger and more complex jobs show up as you complete more work. Your career saves in the browser.
 
 **Controls:** on a phone, the joystick drives (up forward, down reverse, sideways steers) and the yellow button runs the tool. **CAB / CHASE** switches between the first-person cab view and a 45° chase camera, and you can drag the view to look around. On a keyboard: WASD or arrow keys, Space for the tool, V for the view, Enter for the next stage, Esc to pause.
 
