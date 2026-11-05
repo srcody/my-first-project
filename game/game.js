@@ -16,7 +16,8 @@ const BASE_T = 0.077;              // 3 in of stone
 const ASPH_LOOSE = 0.065;          // 2.5 in loose mat
 const ASPH_DONE = 0.05;            // 2 in compacted
 const IN = 39.37;
-const DONE_AT = 0.93;
+const DONE_AT = 0.97;               // 97% coverage finishes a step (shown as 100%)
+const shownPct = (p) => Math.min(100, Math.floor((p / DONE_AT) * 100));
 const PASS_N = 1;                  // roller passes needed per spot
 
 // The current job's lot, centred inside the 24 x 14 m work grid
@@ -511,7 +512,7 @@ const obstacles = []; // static: {x,z,r} circles or {x0,x1,z0,z1} boxes
   while (k < N) {
     const x = (r() - 0.5) * 120, z = (r() - 0.5) * 90;
     if (x > LX0 - 1 && x < LX1 + 1 && z > LZ0 - 1 && z < LZ1 + 1) continue;
-    if (x > -30 && x < -26 && z > 8 && z < 11) continue;
+    if (x > -18 && x < -14 && z > 9.5 && z < 11.5) continue;
     if (z > -13 && z < -7.8) continue;           // haul road
     if (z > 11 && z < 19) continue;              // street
     if ((x < -12.5 && x > -23.5 || x > 12.5 && x < 25) && z > -8 && z < 9.5) continue; // pads
@@ -562,15 +563,18 @@ const obstacles = []; // static: {x,z,r} circles or {x0,x1,z0,z1} boxes
     g.fillStyle = '#151515'; g.fillRect(14, 14, s - 28, s - 28);
     g.fillStyle = '#f4b400'; g.font = 'bold 74px Arial Narrow, Arial, sans-serif'; g.textAlign = 'center';
     g.fillText('NEW PARKING', s / 2, 150); g.fillText('LOT UNDER', s / 2, 250); g.fillText('CONSTRUCTION', s / 2, 350);
-    g.font = 'bold 40px Arial'; g.fillStyle = '#eee'; g.fillText('BLACKTOP LOT BUILDERS', s / 2, 440);
+    g.fillStyle = '#fff'; g.fillRect(40, 392, s - 80, 96);
+    g.fillStyle = '#c4161c'; g.font = 'italic bold 40px Arial, sans-serif'; g.fillText('ASPHALT CARE SERVICES, LLC', s / 2, 438);
+    g.fillStyle = '#151515'; g.font = 'bold 26px Arial, sans-serif'; g.fillText('asphaltcareservices.com', s / 2, 474);
   });
-  const js = new THREE.Group(); js.position.set(-28, 0, 9.5);
+  const js = new THREE.Group(); js.position.set(-16, 0, 10.6);
   box(0.12, 2.2, 0.12, poleMat, -1.1, 1.1, 0, js); box(0.12, 2.2, 0.12, poleMat, 1.1, 1.1, 0, js);
   const jm = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6), new THREE.MeshStandardMaterial({ map: jobTex, roughness: 0.7 }));
   jm.position.set(0, 2.3, 0.07); jm.rotation.y = Math.PI; js.add(jm);
   const jb = box(2.7, 2.7, 0.05, M.dark, 0, 2.3, 0, js);
   js.rotation.y = Math.PI;
   scene.add(js);
+  obstacles.push({ x: -17.1, z: 10.6, r: 0.12 }, { x: -14.9, z: 10.6, r: 0.12 });
 }
 
 // ---------------------------------------------------------------- particles
@@ -1670,10 +1674,10 @@ function updateHUD() {
   ui.stageChip.textContent = `STEP ${G.stepIdx + 1}/${G.job.steps.length}`;
   ui.stageName.textContent = st.name;
   ui.clock.textContent = fmtTime(G.time);
-  const pct = Math.floor(G.progress * 100);
+  const pct = G.reached ? 100 : shownPct(G.progress);
   ui.fill.style.width = `${pct}%`;
-  ui.fill.classList.toggle('done', G.progress >= DONE_AT);
-  ui.pct.textContent = `${pct}%  ·  goal ${Math.round(DONE_AT * 100)}%`;
+  ui.fill.classList.toggle('done', G.reached);
+  ui.pct.textContent = G.reached ? '100% · DONE' : `${pct}%`;
   ui.objective.textContent = st.objective;
   ui.speed.textContent = `${(Math.abs(m.v) * 2.237).toFixed(1)} mph`;
   ui.head.textContent = compass(m.h);
@@ -1698,7 +1702,7 @@ function updateHUD() {
   ui.actionSub.textContent = sub;
   ui.action.classList.toggle('disabled', !!disabled);
   ui.action.classList.toggle('on', !!on);
-  ui.next.classList.toggle('hidden', !G.reached);
+  ui.next.classList.add('hidden');
   ui.next.textContent = isLastStep() ? 'FINISH JOB ▶' : 'NEXT STAGE ▶';
   // contextual hint
   let hint = '';
@@ -1740,6 +1744,7 @@ const isLastStep = () => !G.job || G.stepIdx >= G.job.steps.length - 1;
 function beginStage(i) {
   G.stage = i;
   G.reached = false;
+  G.autoNext = 0;
   G.progress = 0;
   spawnMachine(i);
   updateSupplies();
@@ -1749,8 +1754,7 @@ function beginStage(i) {
 function nextStage() {
   if (!G.reached) return;
   const st = STAGES[G.stage];
-  G.coverage[G.stage] = G.progress;
-  if (!G.reached) return;
+  G.coverage[G.stage] = 1;
   if (st.key === 'roll') {
     let q = 0, n = 0;
     for (let c = 0; c < NC; c++) if (active[c]) { q += Math.min(1, compQ[c]); n++; }
@@ -2171,14 +2175,20 @@ function frame(now) {
       progT = 0;
       G.progress = computeProgress();
       if (!G.reached && G.progress >= DONE_AT) {
+        // close enough: finish the last few cells and move on automatically
         G.reached = true;
+        const st = STAGES[G.stage];
+        for (let c = 0; c < NC; c++) if (active[c] && !st.done(c)) st.fill(c);
+        G.progress = 1;
+        lotDirty = true;
         Sound.chime();
-        toast(isLastStep() ? 'Job goal reached! Tap FINISH JOB, or touch up the last spots.' : 'Stage goal reached! Tap NEXT STAGE, or keep going for 100%.', 'good', 3.5);
+        toast(isLastStep() ? 'Step 100% done! Wrapping up the job…' : 'Step 100% done! On to the next step…', 'good', 2.2);
+        G.autoNext = 1.8;
       }
-      if (G.progress >= 0.999 && G.reached) { /* perfect */ }
     }
+    if (G.autoNext > 0) { G.autoNext -= dt; if (G.autoNext <= 0) { G.autoNext = 0; nextStage(); } }
     hudT += dt;
-    if (hudT > 0.1) { updateHUD(); hudT = 0; }
+    if (G.state === 'play' && hudT > 0.1) { updateHUD(); hudT = 0; }
     Sound.update(Math.abs(m.v) / m.maxV, work, m.v < -0.15, secs);
   } else {
     if (G.state === 'card' || G.state === 'paused') Sound.update(0, 0, false, secs);
@@ -2217,4 +2227,4 @@ $('loading').classList.add('hidden');
 requestAnimationFrame(frame);
 
 // debug hook for automated testing
-window.__game = { get C() { return C; }, takeJob, openOffice, G, STAGES, cut, base, asph, passes, seal, nextStage, doAction, toggleView, input, haul };
+window.__game = { get C() { return C; }, active, takeJob, openOffice, G, STAGES, cut, base, asph, passes, seal, nextStage, doAction, toggleView, input, haul };

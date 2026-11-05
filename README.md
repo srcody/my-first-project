@@ -33,7 +33,7 @@ A 3D job site simulator in `game/`. You take a parking lot from grass to sealed 
 4. **Roll** with a double-drum roller. One vibratory pass compacts each spot, and hot asphalt compacts best.
 5. **Seal coat** with a sealer truck. Spray the lot and refill at the totes.
 
-Every stage takes one pass per spot.
+Every stage takes one pass per spot, and a step finishes on its own once 97% of the lot is done (shown as 100%). The game credits Asphalt Care Services, LLC, with links to asphaltcareservices.com for real paving work.
 
 **Career mode:** you start a paving company with $7,000. Pick jobs from the job board. Bigger lots and jobs with more steps pay more:
 

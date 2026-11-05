@@ -423,3 +423,18 @@ button:disabled { opacity: 0.4; cursor: default; }
   .eq-btns button { flex: 1; }
   .cash-box b { font-size: 18px; }
 }
+
+/* ---------- Asphalt Care Services credit ---------- */
+.title-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.acs-badge {
+  display: inline-flex; flex-direction: column; align-items: flex-end; text-decoration: none;
+  background: #fff; border-radius: 8px; padding: 5px 10px; line-height: 1.15;
+}
+.acs-name { color: #c4161c; font: italic 900 13px/1.1 Arial, sans-serif; letter-spacing: 0.01em; }
+.acs-url { color: #1a1a1a; font: 700 10px var(--mono); }
+.real-work {
+  display: block; margin-top: 12px; padding: 10px 12px; border-radius: 10px; text-decoration: none;
+  background: rgba(196,22,28,0.12); border: 1px solid rgba(196,22,28,0.45); color: #f1d6d6; font-size: 13px; line-height: 1.4; text-align: center;
+}
+.real-work b { color: #fff; }
+.acs-inline { color: #ff6b6b; text-decoration: none; font-style: italic; }
