@@ -51,3 +51,15 @@ Each job needs the machine for every step. You can **buy** it, or **rent** a Mk 
 **Controls:** on a phone, the joystick drives (up forward, down reverse, sideways steers) and the yellow button runs the tool. **CAB / CHASE** switches between the first-person cab view and a 45° chase camera, and you can drag the view to look around. On a keyboard: WASD or arrow keys, Space for the tool, V for the view, Enter for the next stage, Esc to pause.
 
 **Run it:** serve the repo folder (for example `python3 -m http.server`) and open `/game/`. It needs a local server because it uses ES modules. Three.js is bundled in `game/lib`, so it needs no internet.
+
+## Global leaderboard
+
+The office has a **Leaderboard** tab that ranks companies by total career profit. You set your company name there, and your total is posted after every job you finish. Starting a new career creates a new entry, and the old one stays on the board.
+
+The leaderboard runs on Netlify:
+
+- `netlify/functions/leaderboard.mjs` serves the scores at `/api/leaderboard`. It stores them in Netlify Blobs, which needs no setup.
+- `netlify/lib/leaderboard-core.mjs` holds the validation and ranking logic.
+- `package.json` adds the `@netlify/blobs` dependency, and Netlify installs it on deploy.
+
+The leaderboard only works on the Netlify site. Anywhere else, the tab says it's offline and the rest of the game works normally. Scores are sent by the browser, so a determined player could fake one. The server rejects malformed and impossible values.

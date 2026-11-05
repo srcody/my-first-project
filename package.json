@@ -1,0 +1,9 @@
+{
+  "name": "my-first-project",
+  "private": true,
+  "type": "module",
+  "description": "Tidecast weather app and the Blacktop Lot Builder game, with a Netlify Function for the game's leaderboard",
+  "dependencies": {
+    "@netlify/blobs": "^11.1.7"
+  }
+}

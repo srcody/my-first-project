@@ -2,3 +2,8 @@
 [build]
   publish = "game"
   command = ""
+
+# Leaderboard API (netlify/functions/leaderboard.mjs, served at /api/leaderboard)
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"

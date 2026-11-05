@@ -1955,6 +1955,7 @@ function showResults() {
   C.board = C.board.filter((j) => j.id !== job.id);
   refillBoard();
   saveCareer();
+  submitScore();
   $('resultsTitle').textContent = `${job.client}: paid`;
   $('againBtn').textContent = 'BACK TO THE OFFICE';
   show('results', true);
@@ -2024,8 +2025,12 @@ function refillBoard() {
   }
   C.board.sort((a, b) => a.pay - b.pay);
 }
+const newPlayerId = () => (crypto.randomUUID ? crypto.randomUUID() : 'p-' + Math.random().toString(36).slice(2) + Date.now().toString(36));
+const defaultCompany = () => `Paving Crew ${1000 + Math.floor(Math.random() * 9000)}`;
 function newCareer() {
-  C = { v: 2, cash: START_CASH, owned: {}, jobsDone: 0, earned: 0, day: 1, nextId: 1, board: [] };
+  const company = C?.company || defaultCompany();
+  // every new career is a fresh leaderboard entry; the old one stays on the board
+  C = { v: 2, cash: START_CASH, owned: {}, jobsDone: 0, earned: 0, day: 1, nextId: 1, board: [], playerId: newPlayerId(), company };
   refillBoard();
   saveCareer();
 }
@@ -2033,8 +2038,61 @@ function loadCareer() {
   try { C = JSON.parse(localStorage.getItem(CAREER_KEY) || 'null'); } catch (e) { C = null; }
   if (!C || !Array.isArray(C.board)) newCareer();
   else if (C.v !== 2) { C.v = 2; C.board = []; refillBoard(); saveCareer(); } // older saves: refresh the board with the new job mix
+  if (!C.playerId) { C.playerId = newPlayerId(); C.company = C.company || defaultCompany(); saveCareer(); }
 }
 function saveCareer() { try { localStorage.setItem(CAREER_KEY, JSON.stringify(C)); } catch (e) { /* storage unavailable */ } }
+
+// ---------------------------------------------------------------- global leaderboard (Netlify Function at /api/leaderboard)
+const LB_URL = '/api/leaderboard';
+let lbData = null, lbStatus = 'idle'; // idle | loading | ok | offline
+async function lbRequest(opts) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const r = await fetch(LB_URL, { ...opts, signal: ctl.signal, headers: { 'content-type': 'application/json' } });
+    const ct = r.headers.get('content-type') || '';
+    if (!r.ok || !ct.includes('json')) throw new Error('unavailable');
+    const data = await r.json();
+    if (!Array.isArray(data.entries)) throw new Error('bad data');
+    lbData = data; lbStatus = 'ok';
+  } catch (e) {
+    if (lbStatus !== 'ok') lbStatus = 'offline';
+  } finally { clearTimeout(t); }
+  if (G.state === 'office' && officeTab === 'board' && !detailJob) renderOffice();
+}
+function loadLeaderboard() { if (lbStatus !== 'ok') lbStatus = 'loading'; return lbRequest({ method: 'GET' }); }
+function submitScore() {
+  if (!C?.playerId || !C.jobsDone) return Promise.resolve();
+  return lbRequest({ method: 'POST', body: JSON.stringify({ id: C.playerId, name: C.company, profit: Math.round(C.earned), jobs: C.jobsDone }) });
+}
+const esc = (t) => String(t).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+function renderLeaderboard() {
+  const mine = C.playerId;
+  let list;
+  if (lbStatus === 'loading' && !lbData) list = '<p class="muted">Loading the leaderboard…</p>';
+  else if (lbStatus === 'offline' && !lbData) list = '<p class="muted">The leaderboard is offline here. It works on the game\'s website (the Netlify version).</p>';
+  else if (!lbData.entries.length) list = '<p class="muted">No scores yet. Finish a job to be the first on the board!</p>';
+  else {
+    const inTop = lbData.entries.some((e) => e.id === mine);
+    list = `<ol class="lb-list">${lbData.entries.map((e, i) => `<li class="${e.id === mine ? 'me' : ''}"><span class="rk">${i + 1}</span><span class="nm">${esc(e.name)}${e.id === mine ? ' <i>(you)</i>' : ''}</span><span class="jb">${e.jobs} job${e.jobs === 1 ? '' : 's'}</span><span class="pf">${money(e.profit)}</span></li>`).join('')}</ol>
+      <p class="muted">${lbData.total} compan${lbData.total === 1 ? 'y' : 'ies'} on the board${inTop || !C.jobsDone ? '' : ` · you: ${money(C.earned)} profit`}</p>`;
+  }
+  $('boardTab').innerHTML = `<div class="lb-head">GLOBAL LEADERBOARD · TOTAL PROFIT</div>
+    <label class="lb-name">Your company name
+      <span><input id="companyName" maxlength="24" value="${esc(C.company || '')}" /><button id="saveName" class="buy-btn">SAVE</button></span></label>
+    <p class="muted left">Your total profit is posted after every job you finish.</p>
+    ${list}
+    <button id="lbRefresh" class="ghost-btn">REFRESH</button>`;
+  $('saveName').addEventListener('click', () => {
+    const v = $('companyName').value.replace(/[<>]/g, '').trim().slice(0, 24);
+    if (!v) return;
+    C.company = v; saveCareer(); Sound.click();
+    toast('Company name saved.', 'good', 1.6);
+    if (C.jobsDone) submitScore(); else renderOffice();
+  });
+  $('companyName').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') $('saveName').click(); });
+  $('lbRefresh').addEventListener('click', () => { Sound.click(); loadLeaderboard(); renderOffice(); });
+}
 
 let officeTab = 'jobs', detailJob = null, plan = {};
 function openOffice(tab = officeTab) {
@@ -2054,11 +2112,12 @@ function renderOffice() {
   for (const b of document.querySelectorAll('#officeTabs button')) b.classList.toggle('on', b.dataset.tab === officeTab && !detailJob);
   const ownedAny = Object.keys(C.owned).length > 0;
   let msg = '';
-  if (!ownedAny && C.jobsDone === 0) msg = `Welcome to the business! You have <b>${money(C.cash)}</b>. Buy a <b>Mk I sealcoat truck</b> (${money(tierPrice('sealer', 1))}) under Equipment, then take a <b>Seal coat</b> job. Bigger jobs are open too: rent the machines you don't own, and the rental comes out of the pay.`;
+  if (!ownedAny && C.jobsDone === 0 && officeTab === 'jobs') msg = `Welcome to the business! You have <b>${money(C.cash)}</b>. Buy a <b>Mk I sealcoat truck</b> (${money(tierPrice('sealer', 1))}) under Equipment, then take a <b>Seal coat</b> job. Bigger jobs are open too: rent the machines you don't own, and the rental comes out of the pay.`;
   $('officeMsg').innerHTML = msg;
   $('officeMsg').classList.toggle('hidden', !msg);
   show('jobsTab', officeTab === 'jobs' && !detailJob);
   show('garageTab', officeTab === 'garage' && !detailJob);
+  show('boardTab', officeTab === 'board' && !detailJob);
   show('jobDetail', !!detailJob);
   if (detailJob) return renderJobDetail();
   if (officeTab === 'jobs') {
@@ -2073,6 +2132,8 @@ function renderOffice() {
       </button>`;
     }).join('');
     for (const b of $('jobsTab').querySelectorAll('.job-card')) b.addEventListener('click', () => { detailJob = C.board.find((j) => j.id === Number(b.dataset.id)); plan = {}; Sound.click(); renderOffice(); });
+  } else if (officeTab === 'board') {
+    renderLeaderboard();
   } else {
     $('garageTab').innerHTML = Object.entries(MACHINES).map(([type, M0]) => {
       const t = C.owned[type] || 0;
@@ -2205,7 +2266,7 @@ $('newCareerBtn').addEventListener('click', () => {
   b.dataset.confirm = ''; b.textContent = 'NEW CAREER';
   Sound.init(); newCareer(); openOffice('jobs');
 });
-for (const b of document.querySelectorAll('#officeTabs button')) b.addEventListener('click', () => { detailJob = null; officeTab = b.dataset.tab; Sound.click(); renderOffice(); });
+for (const b of document.querySelectorAll('#officeTabs button')) b.addEventListener('click', () => { detailJob = null; officeTab = b.dataset.tab; Sound.click(); if (officeTab === 'board') loadLeaderboard(); renderOffice(); });
 $('newDayBtn').addEventListener('click', () => { C.day++; C.board = C.board.slice(0, 2); refillBoard(); saveCareer(); Sound.click(); renderOffice(); });
 $('officeMenuBtn').addEventListener('click', () => { show('office', false); G.state = 'title'; bestLine(); show('title', true); });
 $('cardGo').addEventListener('click', () => { Sound.init(); show('card', false); G.state = 'play'; snapCamera = true; });
