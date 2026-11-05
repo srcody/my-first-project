@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#121314" />
+  <title>Blacktop Lot Builder</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="c"></canvas>
+
+    <!-- In-game HUD -->
+    <div id="hud" class="hidden">
+      <div id="topbar">
+        <button id="menuBtn" class="icon-btn" aria-label="Pause menu">
+          <span></span><span></span><span></span>
+        </button>
+        <div id="jobPanel">
+          <div class="job-row">
+            <span id="stageChip">STEP 1/5</span>
+            <span id="stageName">EXCAVATE</span>
+            <span id="clock">00:00</span>
+          </div>
+          <div id="objective">Dig out the lot</div>
+          <div id="progress"><div id="progressFill"></div><span id="progressPct">0%</span></div>
+        </div>
+      </div>
+
+      <div id="mapWrap">
+        <canvas id="minimap"></canvas>
+        <div id="viewTag">CHASE</div>
+      </div>
+
+      <div id="gauges">
+        <div class="gauge"><label>SPEED</label><b id="gSpeed">0.0 mph</b></div>
+        <div class="gauge"><label>HEADING</label><b id="gHead">N 0°</b></div>
+        <div class="gauge wide">
+          <label id="gLoadLabel">BUCKET</label>
+          <div class="bar"><div id="gLoadFill"></div></div>
+        </div>
+        <div class="gauge wider"><label id="gReadLabel">UNDER TOOL</label><b id="gRead">-</b></div>
+      </div>
+
+      <div id="hint"></div>
+      <div id="toast"></div>
+
+      <div id="joy"><div id="joyRing"></div><div id="knob"></div></div>
+
+      <div id="rightCtl">
+        <button id="nextBtn" class="hidden">NEXT STAGE ▶</button>
+        <button id="viewBtn">CAB / CHASE</button>
+        <button id="actionBtn"><span id="actionLabel">DIG</span><small id="actionSub"></small></button>
+      </div>
+    </div>
+
+    <!-- Title screen -->
+    <div id="title" class="overlay">
+      <div class="panel title-panel">
+        <div class="kicker">JOB SITE SIMULATOR</div>
+        <h1>BLACKTOP <em>LOT</em> BUILDER</h1>
+        <p class="lede">Take a parking lot from bare grass to fresh, sealed blacktop. You run every machine on the job.</p>
+        <ol class="steps">
+          <li><i>1</i><b>Excavate</b><span>Excavator</span></li>
+          <li><i>2</i><b>Grade base</b><span>Skid steer</span></li>
+          <li><i>3</i><b>Pave</b><span>Paver</span></li>
+          <li><i>4</i><b>Roll</b><span>Roller</span></li>
+          <li><i>5</i><b>Seal coat</b><span>Sealer truck</span></li>
+        </ol>
+        <button id="startBtn" class="big-btn">START THE JOB</button>
+        <div id="bestLine" class="muted"></div>
+        <details class="controls">
+          <summary>Controls</summary>
+          <p><b>Phone:</b> joystick up drives, down reverses, sideways steers. Drag the view to look around. The yellow button runs the tool.</p>
+          <p><b>Keyboard:</b> WASD or arrow keys drive, Space uses the tool, V switches cab and chase view, Enter goes to the next stage, Esc pauses. Drag with the mouse to look around.</p>
+        </details>
+      </div>
+    </div>
+
+    <!-- Stage briefing card -->
+    <div id="card" class="overlay hidden">
+      <div class="panel card-panel">
+        <div class="kicker" id="cardStep">STEP 1 OF 5</div>
+        <h2 id="cardTitle">Excavate</h2>
+        <div class="machine-tag" id="cardMachine">Excavator</div>
+        <p id="cardDesc"></p>
+        <ul id="cardTips"></ul>
+        <button id="cardGo" class="big-btn">GET TO WORK</button>
+      </div>
+    </div>
+
+    <!-- Pause -->
+    <div id="pause" class="overlay hidden">
+      <div class="panel small-panel">
+        <h2>Paused</h2>
+        <button id="resumeBtn" class="big-btn">RESUME</button>
+        <button id="soundBtn" class="ghost-btn">SOUND: ON</button>
+        <button id="fsBtn" class="ghost-btn">FULLSCREEN</button>
+        <button id="restartBtn" class="ghost-btn danger">RESTART JOB</button>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div id="results" class="overlay hidden">
+      <div class="panel card-panel">
+        <div class="kicker">JOB COMPLETE</div>
+        <h2>Lot's open for business</h2>
+        <div id="stars"></div>
+        <div id="resultGrid"></div>
+        <div id="invoice"></div>
+        <button id="againBtn" class="big-btn">START A NEW JOB</button>
+      </div>
+    </div>
+
+    <div id="loading">Loading job site…</div>
+  </div>
+
+  <script type="module" src="game.js"></script>
+</body>
+</html>
