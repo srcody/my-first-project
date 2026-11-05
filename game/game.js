@@ -1816,8 +1816,8 @@ function showResults() {
     <div class="line"><span>Quality bonus (${score}%)</span><span>${money(qBonus)}</span></div>
     <div class="line"><span>Schedule bonus</span><span>${money(tBonus)}</span></div>
     <div class="line total"><span>TOTAL PAID</span><span>${money(total)}</span></div>`;
-  const best = JSON.parse(localStorage.getItem('blacktop-best') || 'null');
-  if (!best || total > best.total) localStorage.setItem('blacktop-best', JSON.stringify({ total, time: G.time, score }));
+  const best = loadBest();
+  if (!best || total > best.total) { try { localStorage.setItem('blacktop-best', JSON.stringify({ total, time: G.time, score })); } catch (e) { /* storage unavailable */ } }
   show('results', true);
   Sound.chime([523, 659, 784, 1047, 1319]);
 }
@@ -1843,8 +1843,11 @@ function pause(on) {
   if (on && G.state === 'play') { G.state = 'paused'; show('pause', true); }
   else if (!on && G.state === 'paused') { G.state = 'play'; show('pause', false); }
 }
+function loadBest() {
+  try { return JSON.parse(localStorage.getItem('blacktop-best') || 'null'); } catch (e) { return null; }
+}
 function bestLine() {
-  const best = JSON.parse(localStorage.getItem('blacktop-best') || 'null');
+  const best = loadBest();
   $('bestLine').textContent = best ? `Best job: $${best.total.toLocaleString()} paid · ${best.score}% quality · ${fmtTime(best.time)}` : '';
 }
 
@@ -1858,7 +1861,7 @@ $('soundBtn').addEventListener('click', () => { Sound.on = !Sound.on; $('soundBt
 $('fsBtn').addEventListener('click', () => {
   const el = document.documentElement;
   if (document.fullscreenElement) document.exitFullscreen?.();
-  else (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+  else { try { const r = (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el); r?.catch?.(() => {}); } catch (e) { /* not allowed here */ } }
 });
 $('viewBtn').addEventListener('click', toggleView);
 $('nextBtn').addEventListener('click', nextStage);
