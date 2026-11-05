@@ -177,6 +177,7 @@ const M = {
   glass: new THREE.MeshStandardMaterial({ color: 0x1b2a35, roughness: 0.05, metalness: 0.4, transparent: true, opacity: 0.45 }),
   white: new THREE.MeshStandardMaterial({ color: 0xf0efe9, roughness: 0.4, metalness: 0.1 }),
   red: new THREE.MeshStandardMaterial({ color: 0xb3261e, roughness: 0.45, metalness: 0.15 }),
+  truckRed: new THREE.MeshStandardMaterial({ color: 0xc21a1f, roughness: 0.32, metalness: 0.25 }),
   black: new THREE.MeshStandardMaterial({ color: 0x0d0d0e, roughness: 0.25, metalness: 0.3 }),
   dirt: new THREE.MeshStandardMaterial({ color: 0x6b4d31, roughness: 1, map: detailTex }),
   stone: new THREE.MeshStandardMaterial({ color: 0x9a968d, roughness: 1, map: gravelTex }),
@@ -880,11 +881,12 @@ function buildSealer() {
   for (const sx of [-1, 1]) for (const z of [1.7, -1.3]) wheel(0.42, 0.32, sx * 0.95, 0.42, z, g, wheels);
   box(1.6, 0.25, 4.6, M.dark, 0, 0.62, -0.1, g);
   // cab
-  box(1.9, 0.85, 1.4, M.white, 0, 1.1, 1.85, g);
-  box(1.9, 0.9, 1.3, M.white, 0, 1.95, 1.2, g);
+  box(1.9, 0.85, 1.4, M.truckRed, 0, 1.1, 1.85, g);
+  box(1.9, 0.9, 1.3, M.truckRed, 0, 1.95, 1.2, g);
   box(1.8, 0.62, 0.05, M.glass, 0, 2.0, 1.86, g, false);
   for (const s of [-1, 1]) box(0.05, 0.55, 1.0, M.glass, s * 0.96, 2.0, 1.2, g, false);
-  box(1.92, 0.15, 1.42, M.yellow, 0, 1.25, 1.86, g);
+  box(1.92, 0.08, 1.42, M.white, 0, 1.52, 1.86, g);
+  sideLogos(g, 1.05, 0.955, 1.12, 1.75);
   box(1.4, 0.35, 0.06, M.dark, 0, 0.95, 2.56, g);
   for (const s of [-1, 1]) box(0.3, 0.16, 0.05, M.headlight, s * 0.65, 1.2, 2.57, g, false);
   beacon(0.6, 2.47, 1.2, g);
@@ -892,6 +894,7 @@ function buildSealer() {
   // bed + tank
   box(2.0, 0.12, 3.0, M.dark, 0, 0.82, -0.85, g);
   const tank = cyl(0.72, 2.5, M.black, 0, 1.6, -0.85, 'z', g, 20);
+  sideLogos(g, 1.7, 0.745, 1.6, -0.85);
   for (const z of [-1.8, -0.85, 0.1]) cyl(0.735, 0.08, M.steel, 0, 1.6, z, 'z', g, 20);
   box(0.3, 0.2, 0.3, M.steel, 0, 2.35, -0.85, g);
   box(0.35, 0.6, 0.35, M.dark, 0.75, 1.15, -2.0, g); // pump
@@ -921,11 +924,13 @@ function buildDumpTruck(cargoMat, cabMat) {
   for (const s of [-1, 1]) box(0.3, 0.18, 0.05, M.headlight, s * 0.8, 1.35, 3.94, g, false);
   cyl(0.07, 1.6, M.chrome, -1.0, 3.0, 1.75, null, g, 8);
   beacon(0.7, 2.82, 2.4, g);
+  sideLogos(g, 1.45, 1.165, 1.6, 2.5);
   const bed = new THREE.Group(); bed.position.set(0, 1.15, -1.0); g.add(bed);
-  box(2.45, 0.14, 4.5, M.red, 0, 0, 0, bed);
-  for (const s of [-1, 1]) box(0.1, 1.1, 4.5, M.red, s * 1.2, 0.6, 0, bed);
-  box(2.45, 1.4, 0.12, M.red, 0, 0.75, 2.2, bed);
-  box(2.45, 1.05, 0.1, M.red, 0, 0.58, -2.22, bed);
+  box(2.45, 0.14, 4.5, M.truckRed, 0, 0, 0, bed);
+  for (const s of [-1, 1]) box(0.1, 1.1, 4.5, M.truckRed, s * 1.2, 0.6, 0, bed);
+  box(2.45, 1.4, 0.12, M.truckRed, 0, 0.75, 2.2, bed);
+  box(2.45, 1.05, 0.1, M.truckRed, 0, 0.58, -2.22, bed);
+  sideLogos(bed, 3.0, 1.32, 0.6, -0.3);
   for (const z of [-1.4, -0.3, 0.8]) for (const s of [-1, 1]) box(0.06, 1.12, 0.12, M.dark, s * 1.27, 0.6, z, bed, false);
   for (const s of [-1, 1]) box(0.25, 0.15, 0.05, M.taillight, s * 0.9, -0.2, -2.3, bed, false);
   const cargo = box(2.25, 1.0, 4.3, cargoMat, 0, 0.55, 0, bed, false);
@@ -933,13 +938,55 @@ function buildDumpTruck(cargoMat, cabMat) {
   return { g, wheels, bed, cargo };
 }
 
+// ---------------------------------------------------------------- Asphalt Care Services truck decals
+const logoTex = (() => {
+  const cv = document.createElement('canvas');
+  cv.width = 1024; cv.height = 400;
+  const g = cv.getContext('2d');
+  const r = 46;
+  g.fillStyle = '#ffffff';
+  g.beginPath(); g.roundRect ? g.roundRect(8, 8, 1008, 384, r) : g.rect(8, 8, 1008, 384); g.fill();
+  // road swoosh mark
+  g.save(); g.translate(60, 70);
+  g.fillStyle = '#111';
+  g.beginPath(); g.moveTo(0, 30); g.quadraticCurveTo(170, -10, 300, 120); g.lineTo(300, 250); g.quadraticCurveTo(170, 90, 0, 120); g.closePath(); g.fill();
+  g.strokeStyle = '#fff'; g.lineWidth = 10; g.setLineDash([26, 18]);
+  g.beginPath(); g.moveTo(10, 78); g.quadraticCurveTo(170, 45, 300, 190); g.stroke();
+  g.restore();
+  g.fillStyle = '#c4161c'; g.textBaseline = 'middle'; g.textAlign = 'left';
+  const fit = (text, size, weight, maxW) => {
+    let fs = size;
+    do { g.font = `${weight} ${fs}px Arial, Helvetica, sans-serif`; fs -= 2; } while (g.measureText(text).width > maxW && fs > 20);
+  };
+  const maxW = 1000 - 390 - 24;
+  fit('ASPHALT CARE', 92, 'italic 900', maxW); g.fillText('ASPHALT CARE', 390, 120);
+  fit('SERVICES, LLC', 80, 'italic 900', maxW); g.fillText('SERVICES, LLC', 390, 215);
+  g.fillStyle = '#151515';
+  fit('asphaltcareservices.com', 46, 'bold', maxW); g.fillText('asphaltcareservices.com', 390, 310);
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+})();
+const logoMat = new THREE.MeshStandardMaterial({ map: logoTex, roughness: 0.5, polygonOffset: true, polygonOffsetFactor: -2 });
+// a logo panel on both sides of a vehicle (local x = +/-x), facing outward
+function sideLogos(parent, w, x, y, z) {
+  const h = w * 0.39;
+  for (const s of [-1, 1]) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), logoMat);
+    m.position.set(s * x, y, z);
+    m.rotation.y = s * Math.PI / 2;
+    parent.add(m);
+  }
+}
+
 // ---------------------------------------------------------------- supplies / props
 const haul = (() => {
-  const t = buildDumpTruck(M.dirt, M.white);
+  const t = buildDumpTruck(M.dirt, M.truckRed);
   return { ...t, x: 2, z: -10.3, h: Math.PI / 2, v: 0, state: 'parked', load: 0, cap: 5 * 150 * TARGET_CUT, wait: 0, count: 0 };
 })();
 const asphTruck = (() => {
-  const t = buildDumpTruck(M.asphalt, M.yellow);
+  const t = buildDumpTruck(M.asphalt, M.truckRed);
   t.cargo.scale.y = 0.8; t.cargo.position.y = 0.45;
   t.g.position.set(-19.2, 0, 2.5); t.g.rotation.y = -Math.PI / 2; t.bed.rotation.x = -0.35; t.bed.position.y = 1.5;
   return t;
