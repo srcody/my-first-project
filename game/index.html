@@ -61,7 +61,7 @@
       <div class="panel title-panel">
         <div class="kicker">JOB SITE SIMULATOR</div>
         <h1>BLACKTOP <em>LOT</em> BUILDER</h1>
-        <p class="lede">Take a parking lot from bare grass to fresh, sealed blacktop. You run every machine on the job.</p>
+        <p class="lede">Start a paving company with $7,000 and one empty yard. Bid on jobs, buy or rent the equipment, and run every machine yourself.</p>
         <ol class="steps">
           <li><i>1</i><b>Excavate</b><span>Excavator</span></li>
           <li><i>2</i><b>Grade base</b><span>Skid steer</span></li>
@@ -69,14 +69,39 @@
           <li><i>4</i><b>Roll</b><span>Roller</span></li>
           <li><i>5</i><b>Seal coat</b><span>Sealer truck</span></li>
         </ol>
-        <button id="startBtn" class="big-btn">START LEVEL 1</button>
-        <div id="levelPick"></div>
+        <button id="startBtn" class="big-btn">START CAREER</button>
+        <button id="newCareerBtn" class="ghost-btn" style="margin-top:8px">NEW CAREER</button>
         <div id="bestLine" class="muted"></div>
         <details class="controls">
           <summary>Controls</summary>
           <p><b>Phone:</b> joystick up drives, down reverses, sideways steers. Drag the view to look around. The yellow button runs the tool.</p>
           <p><b>Keyboard:</b> WASD or arrow keys drive, Space uses the tool, V switches cab and chase view, Enter goes to the next stage, Esc pauses. Drag with the mouse to look around.</p>
         </details>
+      </div>
+    </div>
+
+    <!-- Career office -->
+    <div id="office" class="overlay hidden">
+      <div class="panel office-panel">
+        <div class="office-head">
+          <div>
+            <div class="kicker">THE OFFICE</div>
+            <div id="officeSub" class="muted left"></div>
+          </div>
+          <div class="cash-box"><label>CASH</label><b id="cash">$0</b></div>
+        </div>
+        <div id="officeTabs" class="tabs">
+          <button data-tab="jobs" class="on">JOB BOARD</button>
+          <button data-tab="garage">EQUIPMENT</button>
+        </div>
+        <div id="officeMsg" class="office-msg hidden"></div>
+        <div id="jobsTab" class="job-list"></div>
+        <div id="garageTab" class="hidden"></div>
+        <div id="jobDetail" class="hidden"></div>
+        <div class="row-btns">
+          <button id="newDayBtn" class="ghost-btn">NEXT DAY: NEW LISTINGS</button>
+          <button id="officeMenuBtn" class="ghost-btn">MAIN MENU</button>
+        </div>
       </div>
     </div>
 
@@ -99,7 +124,7 @@
         <button id="resumeBtn" class="big-btn">RESUME</button>
         <button id="soundBtn" class="ghost-btn">SOUND: ON</button>
         <button id="fsBtn" class="ghost-btn">FULLSCREEN</button>
-        <button id="restartBtn" class="ghost-btn danger">RESTART JOB</button>
+        <button id="restartBtn" class="ghost-btn danger">ABANDON JOB</button>
       </div>
     </div>
 
@@ -112,7 +137,7 @@
         <div id="resultGrid"></div>
         <div id="invoice"></div>
         <button id="againBtn" class="big-btn">NEXT LEVEL</button>
-        <div class="row-btns"><button id="replayBtn" class="ghost-btn">REPLAY LEVEL</button><button id="titleBtn" class="ghost-btn">MAIN MENU</button></div>
+        <button id="titleBtn" class="ghost-btn" style="margin-top:8px">MAIN MENU</button>
       </div>
     </div>
 

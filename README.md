@@ -33,9 +33,20 @@ A 3D job site simulator in `game/`. You take a parking lot from grass to sealed 
 4. **Roll** with a double-drum roller. One vibratory pass compacts each spot, and hot asphalt compacts best.
 5. **Seal coat** with a sealer truck. Spray the lot and refill at the totes.
 
-Every stage takes one pass per spot. **Level 1** is a small 17 × 10 m lot. Finishing it unlocks **Level 2**, the full 24 × 14 m lot.
+Every stage takes one pass per spot.
 
-At the end a crew stripes the stalls, cars pull in, and you get a quality score and an invoice.
+**Career mode:** you start a paving company with $7,000. Pick jobs from the job board. Bigger lots and jobs with more steps pay more:
+
+| Job | Steps |
+| --- | --- |
+| Seal coat | Seal |
+| Repave | Pave, roll |
+| Repave & seal | Pave, roll, seal |
+| Base & pave | Base, pave, roll |
+| New lot | Dig, base, pave, roll |
+| Full build | Dig, base, pave, roll, seal |
+
+Each job needs the machine for every step. You can **buy** it, or **rent** a Mk I for the job. Rent costs 12% of the machine's price, is paid up front and comes out of your profit. Bought machines can be upgraded to Mk II and Mk III, which drive faster, carry more and have wider tools. Upgrades trade in the old machine at half price. Pay drops by up to 30% for a sloppy job. Bigger and more complex jobs show up as you complete more work. Your career saves in the browser.
 
 **Controls:** on a phone, the joystick drives (up forward, down reverse, sideways steers) and the yellow button runs the tool. **CAB / CHASE** switches between the first-person cab view and a 45° chase camera, and you can drag the view to look around. On a keyboard: WASD or arrow keys, Space for the tool, V for the view, Enter for the next stage, Esc to pause.
 

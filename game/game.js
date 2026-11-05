@@ -19,12 +19,8 @@ const IN = 39.37;
 const DONE_AT = 0.93;
 const PASS_N = 1;                  // roller passes needed per spot
 
-// Levels: each one is a lot inside the 24 x 14 m work grid
-const LEVELS = [
-  { name: 'Small lot', x0: -8.5, x1: 8.5, z0: -5, z1: 5, contract: 9500 },
-  { name: 'Full lot', x0: -12, x1: 12, z0: -7, z1: 7, contract: 18500 },
-];
-let LV = LEVELS[0];
+// The current job's lot, centred inside the 24 x 14 m work grid
+let LV = { x0: -8.5, x1: 8.5, z0: -5, z1: 5 };
 
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -47,6 +43,7 @@ const temp = new Float32Array(NC);
 const passes = new Uint8Array(NC);
 const compQ = new Float32Array(NC);
 const seal = new Float32Array(NC);
+const aged = new Uint8Array(NC);
 const lastPass = new Float32Array(NC);
 const stamp = new Int32Array(NC);
 const rnd = new Float32Array(NC);
@@ -56,7 +53,7 @@ const rnd = new Float32Array(NC);
 }
 function resetLot() {
   cut.fill(0); base.fill(0); asph.fill(0); temp.fill(0); passes.fill(0);
-  compQ.fill(0); seal.fill(0); lastPass.fill(-99); stamp.fill(-5);
+  compQ.fill(0); seal.fill(0); aged.fill(0); lastPass.fill(-99); stamp.fill(-5);
   lotDirty = true;
 }
 const cellIndex = (ix, iz) => iz * GX + ix;
@@ -64,8 +61,8 @@ const cellX = (ix) => LX0 + (ix + 0.5) * CS;
 const cellZ = (iz) => LZ0 + (iz + 0.5) * CS;
 const active = new Uint8Array(NC);
 let NA = NC;
-function applyLevel(i) {
-  LV = LEVELS[i];
+function applyLot(w, d) {
+  LV = { x0: -w / 2, x1: w / 2, z0: -d / 2, z1: d / 2 };
   NA = 0;
   for (let iz = 0; iz < GZ; iz++) for (let ix = 0; ix < GX; ix++) {
     const x = cellX(ix), z = cellZ(iz);
@@ -355,13 +352,14 @@ const lin = (hex) => new THREE.Color(hex);
 const P = {
   grass: lin(0x5a7c35), grassOut: lin(0x587d33), grass2: lin(0x6f8f3f), dirt: lin(0x8a6440), dirtDeep: lin(0x6a4a2e),
   stoneLow: lin(0x7c7568), stone: lin(0xa8a297), asphHot: lin(0x4a3a2e), asph: lin(0x343334),
-  asphDone: lin(0x242425), sealed: lin(0x0f0f11),
+  asphDone: lin(0x242425), aged: lin(0x6e6b66), sealed: lin(0x0f0f11),
 };
 const cellCol = new Float32Array(NC * 3);
 const cellHt = new Float32Array(NC);
 const tmpC = new THREE.Color();
 function cellColor(c, out) {
   if (seal[c] > 0) out.copy(P.asphDone).lerp(P.sealed, seal[c]);
+  else if (asph[c] && aged[c]) out.copy(P.aged);
   else if (asph[c]) {
     const k = Math.min(passes[c], PASS_N) / PASS_N;
     out.copy(P.asph).lerp(P.asphDone, k).lerp(P.asphHot, temp[c] * 0.55 * (1 - k * 0.7));
@@ -413,6 +411,25 @@ function groundH(x, z) {
 const inLot = (x, z, pad = 0) => x > LV.x0 - pad && x < LV.x1 + pad && z > LV.z0 - pad && z < LV.z1 + pad;
 
 // ---------------------------------------------------------------- scenery
+let signTex = null;
+function drawSign(g, s, name) {
+  g.fillStyle = '#1d3b5c'; g.fillRect(0, 0, s, s);
+  g.fillStyle = '#ffd34d'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  const words = name.toUpperCase().split(' ');
+  const mid = Math.ceil(words.length / 2);
+  const lines = words.length > 1 ? [words.slice(0, mid).join(' '), words.slice(mid).join(' ')] : [words[0]];
+  for (let i = 0; i < lines.length; i++) {
+    let fs = 150;
+    g.font = `bold ${fs}px Arial Narrow, Arial, sans-serif`;
+    while (g.measureText(lines[i]).width > s * 0.92 && fs > 40) { fs -= 8; g.font = `bold ${fs}px Arial Narrow, Arial, sans-serif`; }
+    g.fillText(lines[i], s / 2, lines.length === 1 ? s / 2 : s * (i === 0 ? 0.32 : 0.7));
+  }
+}
+function setClientSign(name) {
+  const cv = signTex.image;
+  drawSign(cv.getContext('2d'), cv.width, name);
+  signTex.needsUpdate = true;
+}
 const obstacles = []; // static: {x,z,r} circles or {x0,x1,z0,z1} boxes
 {
   const r = rng(99);
@@ -426,11 +443,7 @@ const obstacles = []; // static: {x,z,r} circles or {x0,x1,z0,z1} boxes
   box(2.2, 2.6, 0.12, M.dark, 0, 1.3, 5.05, bld, false);
   const awn = box(26, 0.15, 2, M.red, 0, 3.2, 5.9, bld);
   awn.rotation.x = 0.18;
-  const signTex = canvasTex(512, (g, s) => {
-    g.fillStyle = '#1d3b5c'; g.fillRect(0, 0, s, s);
-    g.fillStyle = '#ffd34d'; g.font = 'bold 150px Arial Narrow, Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText('CORNER', s / 2, s * 0.32); g.fillText('MARKET', s / 2, s * 0.7);
-  });
+  signTex = canvasTex(512, (g, s) => drawSign(g, s, 'Corner Market'));
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(8, 2.2), new THREE.MeshStandardMaterial({ map: signTex, roughness: 0.6 }));
   sign.position.set(0, 4.7, 5.06); bld.add(sign);
   scene.add(bld);
@@ -879,13 +892,13 @@ function buildSealer() {
   box(0.3, 0.2, 0.3, M.steel, 0, 2.35, -0.85, g);
   box(0.35, 0.6, 0.35, M.dark, 0.75, 1.15, -2.0, g); // pump
   // spray bar
-  box(3.3, 0.07, 0.07, M.steel, 0, 0.42, -2.65, g);
+  const bar = box(3.3, 0.07, 0.07, M.steel, 0, 0.42, -2.65, g);
   for (const s of [-1, 1]) { const a = box(0.06, 0.06, 0.6, M.steel, s * 0.7, 0.55, -2.35, g, false); a.rotation.x = 0.3; }
   for (let i = 0; i < 9; i++) cyl(0.03, 0.1, M.dark, -1.6 + i * 0.4, 0.35, -2.65, null, g, 6);
   for (const s of [-1, 1]) box(0.25, 0.12, 0.05, M.taillight, s * 0.8, 0.7, -2.42, g, false);
   finishMachine(g);
   return {
-    type: 'sealer', name: 'Sealcoat truck', g, wheels,
+    type: 'sealer', name: 'Sealcoat truck', g, wheels, bar,
     cab: new THREE.Vector3(0.45, 2.25, 1.25), chaseDist: 9.5,
     maxV: 4.2, revV: 2.5, accel: 3.5, turn: 0.95, spin: false, radius: 1.6, len: 5, wid: 2.1,
     load: 1, cap: 1, loadCells: 800, loadLabel: 'SEALER', toolOn: false,
@@ -1022,7 +1035,7 @@ const STAGES = [
 
 // ---------------------------------------------------------------- game state
 const G = {
-  state: 'loading', level: 0, stage: 0, time: 0, progress: 0, reached: false,
+  state: 'loading', job: null, stepIdx: 0, stage: 0, time: 0, progress: 0, reached: false,
   machine: null, parked: [], coverage: [], rollQ: 0,
   view: 'chase', lookYaw: 0, lookPitch: -0.12, orbitYaw: 0, orbitPitch: 0, lastLook: 0,
   frame: 0, finale: null, hintText: '',
@@ -1144,6 +1157,19 @@ function spawnMachine(i) {
   const m = st.build();
   m.x = st.spawn[0]; m.z = st.spawn[1]; m.h = st.spawn[2];
   if (st.key === 'pave') m.z = LV.z0 + 1.5;
+  // equipment tier: faster, bigger loads, wider tools
+  const tier = G.job?.tiers?.[m.type] || 1;
+  const T = TIERS[tier - 1];
+  m.tier = tier; m.rented = !!G.job?.rented?.[m.type];
+  m.maxV *= T.spd; m.revV *= T.spd; m.accel *= T.spd; m.turn *= 1 + (T.spd - 1) * 0.5;
+  m.wm = T.wid; m.digR = T.dig;
+  if (m.loadCells) m.loadCells *= T.cap;
+  if (m.type === 'excavator') { m.cap *= T.cap; haul.cap = 5 * m.cap; }
+  if (m.type === 'skid') m.tool.scale.x = T.wid;
+  if (m.type === 'paver') m.screed.scale.x = T.wid;
+  if (m.type === 'roller') for (const d of m.drums) d.scale.x = T.wid;
+  if (m.type === 'sealer') m.bar.scale.x = T.wid;
+  m.name = `${m.name} ${T.label}${m.rented ? ' (rented)' : ''}`;
   m.v = 0; m.y = 0; m.pitch = 0; m.roll = 0;
   m.g.position.set(m.x, 0, m.z);
   m.g.rotation.y = m.h;
@@ -1171,7 +1197,7 @@ function updateSupplies() {
   haul.g.visible = s === 'dig';
   asphTruck.g.visible = s === 'pave';
   stonePile.visible = s === 'grade';
-  tote.visible = s === 'seal' || G.stage > 4;
+  tote.visible = s === 'seal';
 }
 function dynamicObstacles() {
   const list = [];
@@ -1279,7 +1305,7 @@ function doBite(m) {
   const p = reachWorld(m);
   let removed = 0;
   const room = m.cap - m.load;
-  forCellsInCircle(p.x, p.z, 2.0, (c) => {
+  forCellsInCircle(p.x, p.z, m.digR, (c) => {
     if (cut[c] < TARGET_CUT) { removed += TARGET_CUT - cut[c]; cut[c] = TARGET_CUT; }
   });
   m.load = Math.min(m.cap, m.load + removed);
@@ -1355,7 +1381,7 @@ function workMachine(m, dt, now) {
     }
     if (m.toolOn && moving && m.load > 0) {
       let used = 0;
-      forCellsInRect(m, -0.95, 0.95, 1.1, 1.8, (c) => {
+      forCellsInRect(m, -0.95 * m.wm, 0.95 * m.wm, 1.1, 1.8, (c) => {
         if (base[c] < BASE_T && m.load * m.loadCells - used > 0) {
           const need = (BASE_T - base[c]) / BASE_T;
           const u = Math.min(need, m.load * m.loadCells - used);
@@ -1387,7 +1413,7 @@ function workMachine(m, dt, now) {
     if (m.toolOn && m.load > 0) {
       if (m.v > 0.1) {
         let used = 0;
-        forCellsInRect(m, -1.55, 1.55, -2.3, -1.65, (c) => {
+        forCellsInRect(m, -1.55 * m.wm, 1.55 * m.wm, -2.3, -1.65, (c) => {
           if (!asph[c] && used < m.load * m.loadCells) { asph[c] = 1; temp[c] = 1; passes[c] = 0; used++; }
         });
         if (used) { m.load = Math.max(0, m.load - used / m.loadCells); lotDirty = true; if (m.load <= 0) toast('Hopper empty. Load up at the asphalt truck.', 'warn'); }
@@ -1398,7 +1424,7 @@ function workMachine(m, dt, now) {
   }
   if (m.type === 'roller') {
     const f = G.frame;
-    forCellsInRect(m, -0.9, 0.9, -1.85, 1.85, (c) => {
+    forCellsInRect(m, -0.9 * m.wm, 0.9 * m.wm, -1.85, 1.85, (c) => {
       stamp[c] = f;
       if (m.toolOn && moving && asph[c] && passes[c] < PASS_N) {
         passes[c] = PASS_N; lastPass[c] = now;
@@ -1421,7 +1447,7 @@ function workMachine(m, dt, now) {
     if (m.toolOn && m.load > 0) {
       if (moving) {
         let used = 0;
-        forCellsInRect(m, -1.65, 1.65, -3.1, -2.4, (c) => {
+        forCellsInRect(m, -1.65 * m.wm, 1.65 * m.wm, -3.1, -2.4, (c) => {
           if (asph[c] && seal[c] < 1 && used < m.load * m.loadCells) { used += 1 - seal[c]; seal[c] = 1; }
         });
         if (used) { m.load = Math.max(0, m.load - used / m.loadCells); lotDirty = true; if (m.load <= 0) toast('Tank empty. Refill at the sealer totes.', 'warn'); }
@@ -1493,12 +1519,12 @@ function updateMarker(m) {
   if (m.type === 'excavator') {
     const over = m.load > 0.01 && overTruckBed(m);
     const p = reachWorld(m, over);
-    const r = over ? 0.9 : 1.95;
+    const r = over ? 0.9 : m.digR - 0.05;
     for (let i = 0; i < MARK_N; i++) { const a = (i / MARK_N) * Math.PI * 2; pts.push([p.x + Math.cos(a) * r, p.z + Math.sin(a) * r, over ? 2.85 : null]); }
     markerMat.color.set(over ? 0x5fd38a : m.load >= m.cap - 0.01 ? 0xff8a5c : 0xffd34d);
   } else {
     const rect = { skid: [-0.95, 0.95, 1.1, 1.8], paver: [-1.55, 1.55, -2.3, -1.65], roller: [-0.9, 0.9, -1.85, 1.85], sealer: [-1.65, 1.65, -3.1, -2.4] }[m.type];
-    const [x0, x1, z0, z1] = rect;
+    const [x0, x1, z0, z1] = [rect[0] * m.wm, rect[1] * m.wm, rect[2], rect[3]];
     const per = MARK_N / 4;
     const corners = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
     for (let s = 0; s < 4; s++) {
@@ -1520,7 +1546,7 @@ let snapCamera = true;
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 function updateCamera(dt, now) {
   const m = G.machine;
-  if (G.state === 'title' || G.state === 'loading') {
+  if (G.state === 'title' || G.state === 'loading' || G.state === 'office') {
     const t = now * 0.00006;
     camera.position.set(Math.sin(t) * 34, 16, Math.cos(t) * 30);
     camera.lookAt(0, 0, 0);
@@ -1641,7 +1667,7 @@ function cellUnder(m) {
 function updateHUD() {
   const m = G.machine;
   const st = STAGES[G.stage];
-  ui.stageChip.textContent = `LVL ${G.level + 1} · ${G.stage + 1}/5`;
+  ui.stageChip.textContent = `STEP ${G.stepIdx + 1}/${G.job.steps.length}`;
   ui.stageName.textContent = st.name;
   ui.clock.textContent = fmtTime(G.time);
   const pct = Math.floor(G.progress * 100);
@@ -1673,7 +1699,7 @@ function updateHUD() {
   ui.action.classList.toggle('disabled', !!disabled);
   ui.action.classList.toggle('on', !!on);
   ui.next.classList.toggle('hidden', !G.reached);
-  ui.next.textContent = G.stage === 4 ? 'FINISH JOB ▶' : 'NEXT STAGE ▶';
+  ui.next.textContent = isLastStep() ? 'FINISH JOB ▶' : 'NEXT STAGE ▶';
   // contextual hint
   let hint = '';
   if (m.type === 'excavator') {
@@ -1701,7 +1727,7 @@ function coolMat(dt) {
 // ---------------------------------------------------------------- stage flow
 function showCard(i) {
   const st = STAGES[i];
-  $('cardStep').textContent = `STEP ${i + 1} OF 5`;
+  $('cardStep').textContent = `${G.job.client.toUpperCase()} · STEP ${G.stepIdx + 1} OF ${G.job.steps.length}`;
   $('cardTitle').textContent = st.title;
   $('cardMachine').textContent = G.machine.name.toUpperCase();
   $('cardDesc').textContent = st.desc;
@@ -1710,19 +1736,21 @@ function showCard(i) {
   show('card', true);
   show('hud', true);
 }
+const isLastStep = () => !G.job || G.stepIdx >= G.job.steps.length - 1;
 function beginStage(i) {
   G.stage = i;
   G.reached = false;
   G.progress = 0;
   spawnMachine(i);
   updateSupplies();
-  if (i === 0) { haul.x = 2; haul.state = 'parked'; haul.load = 0; haul.v = 0; haul.count = 0; }
+  if (i === 0) { haul.cap = 5 * G.machine.cap; haul.x = 2; haul.state = 'parked'; haul.load = 0; haul.v = 0; haul.count = 0; }
   showCard(i);
 }
 function nextStage() {
   if (!G.reached) return;
   const st = STAGES[G.stage];
   G.coverage[G.stage] = G.progress;
+  if (!G.reached) return;
   if (st.key === 'roll') {
     let q = 0, n = 0;
     for (let c = 0; c < NC; c++) if (active[c]) { q += Math.min(1, compQ[c]); n++; }
@@ -1736,8 +1764,8 @@ function nextStage() {
   parkMachine(m);
   G.machine = null;
   Sound.chime();
-  if (G.stage >= 4) startFinale();
-  else beginStage(G.stage + 1);
+  if (isLastStep()) startFinale();
+  else { G.stepIdx++; beginStage(G.job.steps[G.stepIdx]); }
 }
 
 // ---------------------------------------------------------------- finale: stripes + cars
@@ -1824,36 +1852,223 @@ function updateFinale(dt) {
   }
   if (F.t > 8.5 && G.state === 'finale') showResults();
 }
+const STEP_LABEL = ['Excavation', 'Stone base', 'Paving', 'Compaction', 'Seal coat'];
 function showResults() {
   G.state = 'results';
-  const cov = G.coverage;
-  const rows = [
-    ['Excavation', cov[0] ?? 0], ['Stone base', cov[1] ?? 0], ['Paving', cov[2] ?? 0], ['Compaction', G.rollQ || 0], ['Seal coat', cov[4] ?? 0],
-  ];
+  const job = G.job;
+  const rows = job.steps.map((st) => [STEP_LABEL[st], st === 3 ? G.rollQ || 0 : G.coverage[st] ?? 0]);
   const quality = rows.reduce((s, r) => s + Math.min(1, r[1]), 0) / rows.length;
   const score = Math.round(quality * 100);
   const stars = score >= 92 ? 3 : score >= 80 ? 2 : 1;
   $('stars').innerHTML = [0, 1, 2].map((i) => `<span class="${i < stars ? '' : 'off'}">★</span>`).join('');
   $('resultGrid').innerHTML = rows.map(([n, v]) => `<div class="res-row"><span>${n}</span><div class="rbar"><div style="width:${Math.round(Math.min(1, v) * 100)}%"></div></div><b>${Math.round(Math.min(1, v) * 100)}%</b></div>`).join('') +
     `<div class="res-row"><span><b style="font-family:inherit;text-align:left">Job time</b></span><span></span><b>${fmtTime(G.time)}</b></div>`;
-  const contract = LV.contract;
-  const qBonus = Math.round(Math.max(0, quality - 0.8) * 5 * 4000 / 50) * 50;
-  const tBonus = Math.round(Math.max(0, 1 - G.time / (G.level === 0 ? 800 : 1500)) * (G.level === 0 ? 1500 : 3000) / 50) * 50;
-  const total = contract + qBonus + tBonus;
-  const money = (v) => `$${v.toLocaleString()}`;
-  $('invoice').innerHTML = `<div class="line"><span>INVOICE · Corner Market lot</span><span>#${1000 + Math.floor(Math.random() * 9000)}</span></div>
-    <div class="line"><span>Level ${G.level + 1} contract (${LV.x1 - LV.x0} × ${LV.z1 - LV.z0} m lot)</span><span>${money(contract)}</span></div>
-    <div class="line"><span>Quality bonus (${score}%)</span><span>${money(qBonus)}</span></div>
-    <div class="line"><span>Schedule bonus</span><span>${money(tBonus)}</span></div>
-    <div class="line total"><span>TOTAL PAID</span><span>${money(total)}</span></div>`;
-  const best = loadBest();
-  if (!best || total > best.total) { try { localStorage.setItem('blacktop-best', JSON.stringify({ total, time: G.time, score })); } catch (e) { /* storage unavailable */ } }
-  const hasNext = G.level + 1 < LEVELS.length;
-  if (hasNext) unlockLevel(G.level + 1);
-  $('resultsTitle').textContent = hasNext ? `Level ${G.level + 1} complete!` : "Lot's open for business";
-  $('againBtn').textContent = hasNext ? `NEXT: LEVEL ${G.level + 2} ▶` : 'PLAY AGAIN';
+  const payout = Math.round((job.pay * (0.7 + 0.3 * Math.min(1, quality))) / 10) * 10;
+  const qAdj = payout - job.pay;
+  const net = payout - G.jobRent;
+  $('invoice').innerHTML = `<div class="line"><span>INVOICE · ${job.client}</span><span>#${1000 + job.id}</span></div>
+    <div class="line"><span>${job.type} (${job.w} × ${job.d} m)</span><span>${money(job.pay)}</span></div>
+    <div class="line"><span>Quality adjustment (${score}%)</span><span>${qAdj < 0 ? '−' + money(-qAdj) : money(qAdj)}</span></div>
+    <div class="line"><span>Equipment rental</span><span>${G.jobRent ? '−' + money(G.jobRent) : '$0'}</span></div>
+    <div class="line total"><span>NET PROFIT</span><span>${net < 0 ? '−' + money(-net) : money(net)}</span></div>`;
+  C.cash += payout;
+  C.jobsDone++;
+  C.earned += net;
+  C.board = C.board.filter((j) => j.id !== job.id);
+  refillBoard();
+  saveCareer();
+  $('resultsTitle').textContent = `${job.client}: paid`;
+  $('againBtn').textContent = 'BACK TO THE OFFICE';
   show('results', true);
   Sound.chime([523, 659, 784, 1047, 1319]);
+}
+
+// ---------------------------------------------------------------- career: jobs, equipment, money
+const money = (v) => `$${Math.round(v).toLocaleString()}`;
+const STAGE_MACHINE = ['excavator', 'skid', 'paver', 'roller', 'sealer'];
+const MACHINES = {
+  sealer: { name: 'Sealcoat truck', price: 5500, what: 'Seal coating' },
+  roller: { name: 'Double-drum roller', price: 18000, what: 'Rolling' },
+  skid: { name: 'Skid steer + box blade', price: 22000, what: 'Stone base' },
+  paver: { name: 'Asphalt paver', price: 60000, what: 'Paving' },
+  excavator: { name: 'Excavator', price: 75000, what: 'Excavation' },
+};
+const TIERS = [
+  { label: 'Mk I', mult: 1, spd: 1, cap: 1, wid: 1, dig: 2.0 },
+  { label: 'Mk II', mult: 2.2, spd: 1.2, cap: 1.5, wid: 1.25, dig: 2.4 },
+  { label: 'Mk III', mult: 4, spd: 1.4, cap: 2.2, wid: 1.5, dig: 2.8 },
+];
+const RENT_RATE = 0.12;
+const START_CASH = 7000;
+const tierPrice = (type, t) => Math.round((MACHINES[type].price * TIERS[t - 1].mult) / 100) * 100;
+const resale = (type, t) => Math.round((tierPrice(type, t) * 0.5) / 100) * 100;
+const upgradeCost = (type, owned) => tierPrice(type, owned + 1) - (owned ? resale(type, owned) : 0);
+const rentCost = (type) => Math.round((MACHINES[type].price * RENT_RATE) / 50) * 50;
+const RATES = [50, 40, 110, 25, 30]; // $ per m2 for each step
+const JOB_TYPES = [
+  { name: 'Seal coat', steps: [4], minJobs: 0, w: 5, blurb: 'Faded, worn lot. Spray a fresh coat of sealer.' },
+  { name: 'Repave', steps: [2, 3], minJobs: 1, w: 3, blurb: 'Old asphalt is milled off. Lay a new mat on the base and roll it.' },
+  { name: 'Repave & seal', steps: [2, 3, 4], minJobs: 2, w: 3, blurb: 'New mat on the existing base, rolled and sealed.' },
+  { name: 'Base & pave', steps: [1, 2, 3], minJobs: 3, w: 2, blurb: 'Ground is already dug out. Spread stone, pave and roll.' },
+  { name: 'New lot', steps: [0, 1, 2, 3], minJobs: 4, w: 2, blurb: 'Grass field to finished blacktop.' },
+  { name: 'Full build', steps: [0, 1, 2, 3, 4], minJobs: 4, w: 2, blurb: 'The whole job: dig, base, pave, roll and seal.' },
+];
+const SIZES = [[10, 6], [12, 8], [14, 8], [17, 10], [20, 12], [24, 14]];
+const CLIENTS = ['Corner Market', 'Lakeside Church', 'Hometown Pizza', 'Oak St Apartments', 'Riverside Library', 'Sunrise Diner',
+  'Main St Hardware', 'Tri County Feed', 'Eastside Storage', 'Patel Dental', 'Pine Ridge School', 'Harbor Bait Shop', 'Valley Vet Clinic', 'Gold Star Gym'];
+let C = null;
+const CAREER_KEY = 'blacktop-career-v1';
+function makeJob() {
+  const done = C.jobsDone;
+  const types = JOB_TYPES.filter((t) => t.minJobs <= done);
+  let tot = types.reduce((a, t) => a + t.w, 0), r = Math.random() * tot, type = types[0];
+  for (const t of types) { if ((r -= t.w) <= 0) { type = t; break; } }
+  const maxSize = Math.min(SIZES.length - 1, 1 + Math.floor(done / 1.5));
+  const [w, d] = SIZES[Math.floor(Math.random() * (maxSize + 1))];
+  const rate = type.steps.reduce((a, st) => a + RATES[st], 0);
+  const complexity = 1 + 0.12 * (type.steps.length - 1);
+  const pay = Math.round((w * d * rate * complexity * (0.92 + Math.random() * 0.16)) / 50) * 50;
+  return { id: C.nextId++, client: CLIENTS[Math.floor(Math.random() * CLIENTS.length)], type: type.name, blurb: type.blurb, steps: type.steps, w, d, pay };
+}
+function refillBoard() {
+  while (C.board.length < 5) C.board.push(makeJob());
+  if (!C.board.some((j) => j.steps.length === 1)) { // always keep a starter seal job available
+    const j = makeJob(); j.type = 'Seal coat'; j.steps = [4]; j.blurb = JOB_TYPES[0].blurb;
+    j.pay = Math.round((j.w * j.d * RATES[4]) / 50) * 50; C.board[C.board.length - 1] = j;
+  }
+  C.board.sort((a, b) => a.pay - b.pay);
+}
+function newCareer() {
+  C = { cash: START_CASH, owned: {}, jobsDone: 0, earned: 0, day: 1, nextId: 1, board: [] };
+  refillBoard();
+  saveCareer();
+}
+function loadCareer() {
+  try { C = JSON.parse(localStorage.getItem(CAREER_KEY) || 'null'); } catch (e) { C = null; }
+  if (!C || !Array.isArray(C.board)) newCareer();
+}
+function saveCareer() { try { localStorage.setItem(CAREER_KEY, JSON.stringify(C)); } catch (e) { /* storage unavailable */ } }
+
+let officeTab = 'jobs', detailJob = null, plan = {};
+function openOffice(tab = officeTab) {
+  officeTab = tab; detailJob = null;
+  G.state = 'office';
+  show('title', false); show('results', false); show('hud', false); show('pause', false); show('card', false);
+  show('office', true);
+  renderOffice();
+}
+function stepChips(steps) {
+  return steps.map((st) => `<span class="chip">${STAGE_LABEL_SHORT[st]}</span>`).join('');
+}
+const STAGE_LABEL_SHORT = ['Dig', 'Base', 'Pave', 'Roll', 'Seal'];
+function renderOffice() {
+  $('cash').textContent = money(C.cash);
+  $('officeSub').textContent = `Day ${C.day} · ${C.jobsDone} job${C.jobsDone === 1 ? '' : 's'} done · ${money(C.earned)} profit so far`;
+  for (const b of document.querySelectorAll('#officeTabs button')) b.classList.toggle('on', b.dataset.tab === officeTab && !detailJob);
+  const ownedAny = Object.keys(C.owned).length > 0;
+  let msg = '';
+  if (!ownedAny && C.jobsDone === 0) msg = `Welcome to the business! You have <b>${money(C.cash)}</b>. Buy a <b>Mk I sealcoat truck</b> (${money(tierPrice('sealer', 1))}) under Equipment, then take a <b>Seal coat</b> job.`;
+  $('officeMsg').innerHTML = msg;
+  $('officeMsg').classList.toggle('hidden', !msg);
+  show('jobsTab', officeTab === 'jobs' && !detailJob);
+  show('garageTab', officeTab === 'garage' && !detailJob);
+  show('jobDetail', !!detailJob);
+  if (detailJob) return renderJobDetail();
+  if (officeTab === 'jobs') {
+    $('jobsTab').innerHTML = C.board.map((j) => {
+      const need = [...new Set(j.steps.map((st) => STAGE_MACHINE[st]))];
+      const rent = need.filter((t) => !C.owned[t]).reduce((a, t) => a + rentCost(t), 0);
+      return `<button class="job-card" data-id="${j.id}">
+        <div class="jc-top"><b>${j.client}</b><span class="pay">${money(j.pay)}</span></div>
+        <div class="jc-type">${j.type} · ${j.w} × ${j.d} m</div>
+        <div class="chips">${stepChips(j.steps)}</div>
+        <div class="jc-foot">${rent ? `Rentals needed: ${money(rent)} · est. profit ${money(j.pay - rent)}` : 'You own all the equipment for this job'}</div>
+      </button>`;
+    }).join('');
+    for (const b of $('jobsTab').querySelectorAll('.job-card')) b.addEventListener('click', () => { detailJob = C.board.find((j) => j.id === Number(b.dataset.id)); plan = {}; Sound.click(); renderOffice(); });
+  } else {
+    $('garageTab').innerHTML = Object.entries(MACHINES).map(([type, M0]) => {
+      const t = C.owned[type] || 0;
+      const next = t < 3 ? TIERS[t] : null;
+      const cost = next ? upgradeCost(type, t) : 0;
+      const stats = (T) => type === 'excavator' ? `${T.spd}× speed · ${T.cap}× bucket · ${T.dig} m bite` : `${T.spd}× speed · ${T.cap}× load · ${T.wid}× tool width`;
+      return `<div class="gear-row">
+        <div class="gear-info"><b>${M0.name}</b><span>${t ? `Owned: <em>${TIERS[t - 1].label}</em> · ${stats(TIERS[t - 1])}` : `Not owned · rent for ${money(rentCost(type))} per job`}</span>
+        ${next ? `<span class="next">${next.label}: ${stats(next)}</span>` : '<span class="next">Top of the line</span>'}</div>
+        <div class="gear-btns">
+          ${next ? `<button class="buy-btn" data-buy="${type}" ${C.cash >= cost ? '' : 'disabled'}>${t ? 'UPGRADE' : 'BUY'} ${money(cost)}</button>` : ''}
+          ${t ? `<button class="sell-btn" data-sell="${type}">SELL ${money(resale(type, t))}</button>` : ''}
+        </div></div>`;
+    }).join('') + '<p class="muted">Upgrades trade in your old machine at half its price. Higher tiers drive faster, carry more and cover more ground per pass.</p>';
+    for (const b of $('garageTab').querySelectorAll('[data-buy]')) b.addEventListener('click', () => buyMachine(b.dataset.buy));
+    for (const b of $('garageTab').querySelectorAll('[data-sell]')) b.addEventListener('click', () => sellMachine(b.dataset.sell, b));
+  }
+}
+function buyMachine(type) {
+  const t = C.owned[type] || 0;
+  if (t >= 3) return;
+  const cost = upgradeCost(type, t);
+  if (C.cash < cost) return;
+  C.cash -= cost; C.owned[type] = t + 1;
+  saveCareer(); Sound.chime([523, 784]);
+  renderOffice();
+}
+function sellMachine(type, btn) {
+  if (btn && btn.dataset.confirm !== '1') { btn.dataset.confirm = '1'; btn.textContent = 'TAP TO CONFIRM'; return; }
+  C.cash += resale(type, C.owned[type]);
+  delete C.owned[type];
+  saveCareer(); Sound.click();
+  renderOffice();
+}
+function renderJobDetail() {
+  const j = detailJob;
+  const need = [...new Set(j.steps.map((st) => STAGE_MACHINE[st]))];
+  let rent = 0, ready = true;
+  const rows = need.map((type) => {
+    const t = C.owned[type];
+    if (t) return `<div class="eq-row"><span><b>${MACHINES[type].name}</b><i>${MACHINES[type].what}</i></span><span class="owned">✓ Owned · ${TIERS[t - 1].label}</span></div>`;
+    if (plan[type] === 'rent') rent += rentCost(type); else ready = false;
+    const bc = tierPrice(type, 1);
+    return `<div class="eq-row"><span><b>${MACHINES[type].name}</b><i>${MACHINES[type].what}</i></span><span class="eq-btns">
+      <button class="${plan[type] === 'rent' ? 'on' : ''}" data-rent="${type}">RENT ${money(rentCost(type))}</button>
+      <button data-buyj="${type}" ${C.cash >= bc ? '' : 'disabled'}>BUY ${money(bc)}</button></span></div>`;
+  }).join('');
+  const afford = C.cash >= rent;
+  $('jobDetail').innerHTML = `<button class="back-btn" id="jdBack">◀ Job board</button>
+    <h3>${j.client}</h3>
+    <div class="jc-type">${j.type} · ${j.w} × ${j.d} m lot</div>
+    <p class="jd-blurb">${j.blurb}</p>
+    <div class="chips">${stepChips(j.steps)}</div>
+    <div class="eq-head">EQUIPMENT</div>${rows}
+    <div class="jd-sum"><div><span>Contract</span><b>${money(j.pay)}</b></div><div><span>Rentals (paid up front)</span><b>${rent ? '−' + money(rent) : '$0'}</b></div><div class="tot"><span>Profit at 100% quality</span><b>${money(j.pay - rent)}</b></div></div>
+    <p class="muted">Pay drops by up to 30% for a sloppy job. Rentals are always Mk I.</p>
+    <button class="big-btn" id="jdStart" ${ready && afford ? '' : 'disabled'}>${!ready ? 'RENT OR BUY THE EQUIPMENT' : afford ? 'TAKE THE JOB' : 'NOT ENOUGH CASH FOR RENTALS'}</button>`;
+  $('jdBack').addEventListener('click', () => { detailJob = null; renderOffice(); });
+  for (const b of $('jobDetail').querySelectorAll('[data-rent]')) b.addEventListener('click', () => { const t = b.dataset.rent; plan[t] = plan[t] === 'rent' ? null : 'rent'; Sound.click(); renderJobDetail(); });
+  for (const b of $('jobDetail').querySelectorAll('[data-buyj]')) b.addEventListener('click', () => { buyMachine(b.dataset.buyj); });
+  $('jdStart').addEventListener('click', () => { if (ready && afford) takeJob(j, need); });
+}
+function takeJob(job, need) {
+  G.job = { ...job, tiers: {}, rented: {} };
+  let rent = 0;
+  for (const t of need) {
+    if (C.owned[t]) G.job.tiers[t] = C.owned[t];
+    else { G.job.tiers[t] = 1; G.job.rented[t] = true; rent += rentCost(t); }
+  }
+  C.cash -= rent;
+  G.jobRent = rent;
+  saveCareer();
+  show('office', false);
+  Sound.init();
+  startJob();
+}
+function abandonJob() {
+  resetJob();
+  G.job = null;
+  C.day++;
+  saveCareer();
+  openOffice('jobs');
+  toast('Job abandoned. Rental fees are not refunded.', 'warn', 3);
 }
 
 // ---------------------------------------------------------------- reset / start
@@ -1868,47 +2083,50 @@ function resetJob() {
   G.time = 0; G.coverage = []; G.rollQ = 0;
   haul.x = 2; haul.state = 'parked'; haul.load = 0; haul.count = 0;
 }
-function startJob(level = G.level) {
-  G.level = level;
-  applyLevel(level);
+function startJob() {
+  const job = G.job;
+  applyLot(job.w, job.d);
   resetJob();
+  // the lot arrives in the state left by the steps this job doesn't include
+  const first = job.steps[0];
+  for (let c = 0; c < NC; c++) {
+    if (!active[c]) continue;
+    for (let st = 0; st < first; st++) STAGES[st].fill(c);
+    if (first > 3) { compQ[c] = 1; temp[c] = 0; aged[c] = 1; }
+  }
   lotDirty = true;
+  setClientSign(job.client);
   show('title', false); show('results', false); show('pause', false);
-  beginStage(0);
+  G.stepIdx = 0;
+  beginStage(first);
 }
 function pause(on) {
   if (on && G.state === 'play') { G.state = 'paused'; show('pause', true); }
   else if (!on && G.state === 'paused') { G.state = 'play'; show('pause', false); }
 }
-function loadBest() {
-  try { return JSON.parse(localStorage.getItem('blacktop-best') || 'null'); } catch (e) { return null; }
-}
-function unlockedLevels() {
-  try { return Math.max(1, Number(localStorage.getItem('blacktop-unlocked')) || 1); } catch (e) { return 1; }
-}
-function unlockLevel(i) {
-  try { if (unlockedLevels() < i + 1) localStorage.setItem('blacktop-unlocked', String(i + 1)); } catch (e) { /* storage unavailable */ }
-  renderLevelPicker();
-}
-function renderLevelPicker() {
-  const n = unlockedLevels();
-  $('levelPick').innerHTML = LEVELS.map((L, i) => `<button class="lvl-btn${i < n ? '' : ' locked'}" data-l="${i}" ${i < n ? '' : 'disabled'}>
-    <b>LEVEL ${i + 1}</b><span>${L.name} · ${L.x1 - L.x0}×${L.z1 - L.z0} m</span>${i < n ? '' : '<i>🔒 Finish level ' + i + '</i>'}</button>`).join('');
-  for (const b of $('levelPick').querySelectorAll('button:not([disabled])')) b.addEventListener('click', () => { Sound.init(); startJob(Number(b.dataset.l)); });
-}
 function bestLine() {
-  const best = loadBest();
-  $('bestLine').textContent = best ? `Best job: $${best.total.toLocaleString()} paid · ${best.score}% quality · ${fmtTime(best.time)}` : '';
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(CAREER_KEY) || 'null'); } catch (e) { /* ignore */ }
+  $('bestLine').textContent = saved && saved.jobsDone ? `Saved career: ${money(saved.cash)} cash · ${saved.jobsDone} jobs done` : '';
+  $('startBtn').textContent = saved && saved.jobsDone ? 'CONTINUE CAREER' : 'START CAREER';
 }
 
-$('startBtn').addEventListener('click', () => { Sound.init(); startJob(0); });
+$('startBtn').addEventListener('click', () => { Sound.init(); loadCareer(); openOffice('jobs'); });
+$('newCareerBtn').addEventListener('click', () => {
+  const b = $('newCareerBtn');
+  if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = 'TAP AGAIN: THIS ERASES YOUR SAVE'; return; }
+  b.dataset.confirm = ''; b.textContent = 'NEW CAREER';
+  Sound.init(); newCareer(); openOffice('jobs');
+});
+for (const b of document.querySelectorAll('#officeTabs button')) b.addEventListener('click', () => { detailJob = null; officeTab = b.dataset.tab; Sound.click(); renderOffice(); });
+$('newDayBtn').addEventListener('click', () => { C.day++; C.board = C.board.slice(0, 2); refillBoard(); saveCareer(); Sound.click(); renderOffice(); });
+$('officeMenuBtn').addEventListener('click', () => { show('office', false); G.state = 'title'; bestLine(); show('title', true); });
 $('cardGo').addEventListener('click', () => { Sound.init(); show('card', false); G.state = 'play'; snapCamera = true; });
 $('menuBtn').addEventListener('click', () => pause(true));
 $('resumeBtn').addEventListener('click', () => pause(false));
-$('restartBtn').addEventListener('click', () => { show('pause', false); startJob(); });
-$('againBtn').addEventListener('click', () => { show('results', false); startJob(Math.min(LEVELS.length - 1, G.level + 1)); });
-$('replayBtn').addEventListener('click', () => { show('results', false); startJob(G.level); });
-$('titleBtn').addEventListener('click', () => { show('results', false); resetJob(); G.state = 'title'; show('hud', false); show('title', true); bestLine(); renderLevelPicker(); });
+$('restartBtn').addEventListener('click', () => { show('pause', false); abandonJob(); });
+$('againBtn').addEventListener('click', () => { resetJob(); G.job = null; C.day++; saveCareer(); openOffice('jobs'); });
+$('titleBtn').addEventListener('click', () => { show('results', false); resetJob(); G.job = null; C.day++; saveCareer(); G.state = 'title'; show('hud', false); show('title', true); bestLine(); });
 $('soundBtn').addEventListener('click', () => { Sound.on = !Sound.on; $('soundBtn').textContent = `SOUND: ${Sound.on ? 'ON' : 'OFF'}`; });
 $('fsBtn').addEventListener('click', () => {
   const el = document.documentElement;
@@ -1946,7 +2164,7 @@ function frame(now) {
       if (!G.reached && G.progress >= DONE_AT) {
         G.reached = true;
         Sound.chime();
-        toast(G.stage === 4 ? 'Seal coat done! Tap FINISH JOB, or touch up the last spots.' : 'Stage goal reached! Tap NEXT STAGE, or keep going for 100%.', 'good', 3.5);
+        toast(isLastStep() ? 'Job goal reached! Tap FINISH JOB, or touch up the last spots.' : 'Stage goal reached! Tap NEXT STAGE, or keep going for 100%.', 'good', 3.5);
       }
       if (G.progress >= 0.999 && G.reached) { /* perfect */ }
     }
@@ -1968,7 +2186,7 @@ function frame(now) {
   if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) $('toast').classList.remove('show'); }
   if (lotDirty) rebuildLot();
   // lot gets a bit glossier as it's sealed
-  lotMat.roughness = G.stage >= 4 || G.state === 'finale' || G.state === 'results' ? 0.7 : 0.95;
+  lotMat.roughness = G.stage >= 4 || (G.job && G.job.steps[0] === 4) || G.state === 'finale' || G.state === 'results' ? 0.7 : 0.95;
   particles.update(dt);
   updateCamera(dt, now);
   mapT += dt;
@@ -1979,11 +2197,10 @@ function frame(now) {
 // ---------------------------------------------------------------- boot
 addEventListener('resize', resize);
 resize();
-applyLevel(0);
+applyLot(17, 10);
 resetLot();
 rebuildLot();
 updateSupplies();
-renderLevelPicker();
 haul.g.position.set(haul.x, 0, haul.z); haul.g.rotation.y = haul.h;
 G.state = 'title';
 bestLine();
@@ -1991,4 +2208,4 @@ $('loading').classList.add('hidden');
 requestAnimationFrame(frame);
 
 // debug hook for automated testing
-window.__game = { G, STAGES, cut, base, asph, passes, seal, nextStage, doAction, toggleView, input, haul };
+window.__game = { get C() { return C; }, takeJob, openOffice, G, STAGES, cut, base, asph, passes, seal, nextStage, doAction, toggleView, input, haul };

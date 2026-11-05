@@ -364,3 +364,62 @@ h2 { font-size: 32px; font-weight: 900; }
   #actionBtn { width: 100px; height: 100px; font-size: 20px; }
   #minimap { width: 140px; height: 90px; }
 }
+
+/* ---------- Career office ---------- */
+.office-panel { width: min(640px, 100%); padding: 18px; }
+.office-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+.muted.left { text-align: left; margin-top: 4px; }
+.cash-box { background: rgba(95,211,138,0.12); border: 1px solid rgba(95,211,138,0.45); border-radius: 12px; padding: 6px 12px; text-align: right; }
+.cash-box label { display: block; font: 700 10px var(--mono); letter-spacing: 0.15em; color: #8ee0a9; }
+.cash-box b { font: 800 22px var(--mono); color: #b9f5cc; }
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+.tabs button { background: rgba(255,255,255,0.05); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font: 800 13px var(--mono); letter-spacing: 0.08em; color: var(--muted); }
+.tabs button.on { background: var(--yellow); color: #151515; border-color: var(--yellow); }
+.office-msg { background: rgba(244,180,0,0.12); border-left: 4px solid var(--yellow); border-radius: 8px; padding: 10px 12px; font-size: 14px; line-height: 1.45; margin-bottom: 12px; }
+.job-list { display: grid; gap: 8px; margin-bottom: 12px; max-height: 56vh; overflow-y: auto; }
+.job-card { text-align: left; background: rgba(255,255,255,0.05); border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; display: grid; gap: 6px; }
+.job-card:hover { border-color: rgba(244,180,0,0.6); }
+.jc-top { display: flex; justify-content: space-between; gap: 8px; font-size: 16px; }
+.pay { font: 800 16px var(--mono); color: #8ee0a9; }
+.jc-type { font: 700 12px var(--mono); color: var(--yellow); letter-spacing: 0.04em; }
+.jc-foot { font-size: 12px; color: var(--muted); }
+.chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.chip { font: 700 11px var(--mono); padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,0.1); color: #eee; }
+.gear-row { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.gear-info { display: grid; gap: 3px; font-size: 13px; color: #cfccc3; }
+.gear-info b { font-size: 15px; color: var(--text); }
+.gear-info em { font-style: normal; color: var(--yellow); font-weight: 700; }
+.gear-info .next { font-size: 12px; color: var(--muted); }
+.gear-btns { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
+.buy-btn, .sell-btn, .eq-btns button {
+  font: 800 12px var(--mono); padding: 9px 10px; border-radius: 9px; letter-spacing: 0.04em; white-space: nowrap;
+}
+.buy-btn { background: var(--yellow); color: #151515; }
+.sell-btn { background: rgba(255,255,255,0.06); border: 1px solid var(--line); color: #ffb3a1; }
+button:disabled { opacity: 0.4; cursor: default; }
+#jobDetail { margin-bottom: 12px; }
+#jobDetail h3 { font-family: var(--head); font-size: 28px; margin: 8px 0 4px; }
+.back-btn { background: none; color: var(--yellow); font: 700 13px var(--mono); padding: 4px 0; }
+.jd-blurb { color: #d8d5cc; margin: 6px 0 8px; line-height: 1.4; }
+.eq-head { font: 700 11px var(--mono); letter-spacing: 0.18em; color: var(--muted); margin: 14px 0 4px; }
+.eq-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.eq-row > span:first-child { display: grid; gap: 2px; font-size: 14px; }
+.eq-row i { font-style: normal; font-size: 11px; color: var(--muted); }
+.owned { font: 700 12px var(--mono); color: #8ee0a9; }
+.eq-btns { display: flex; gap: 5px; }
+.eq-btns button { background: rgba(255,255,255,0.07); border: 1px solid var(--line); }
+.eq-btns button.on { background: var(--yellow); color: #151515; border-color: var(--yellow); }
+.jd-sum { margin: 12px 0 6px; display: grid; gap: 4px; font-size: 14px; }
+.jd-sum div { display: flex; justify-content: space-between; }
+.jd-sum b { font-family: var(--mono); }
+.jd-sum .tot { border-top: 1px dashed var(--line); padding-top: 6px; font-size: 15px; }
+.jd-sum .tot b { color: #8ee0a9; }
+.big-btn:disabled { background: #555; color: #bbb; }
+@media (max-width: 640px) {
+  .gear-row { flex-direction: column; align-items: stretch; }
+  .gear-btns { flex-direction: row; }
+  .gear-btns button { flex: 1; }
+  .eq-row { flex-direction: column; align-items: stretch; }
+  .eq-btns button { flex: 1; }
+  .cash-box b { font-size: 18px; }
+}
