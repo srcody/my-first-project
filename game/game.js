@@ -17,6 +17,14 @@ const ASPH_LOOSE = 0.065;          // 2.5 in loose mat
 const ASPH_DONE = 0.05;            // 2 in compacted
 const IN = 39.37;
 const DONE_AT = 0.93;
+const PASS_N = 1;                  // roller passes needed per spot
+
+// Levels: each one is a lot inside the 24 x 14 m work grid
+const LEVELS = [
+  { name: 'Small lot', x0: -8.5, x1: 8.5, z0: -5, z1: 5, contract: 9500 },
+  { name: 'Full lot', x0: -12, x1: 12, z0: -7, z1: 7, contract: 18500 },
+];
+let LV = LEVELS[0];
 
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -54,6 +62,18 @@ function resetLot() {
 const cellIndex = (ix, iz) => iz * GX + ix;
 const cellX = (ix) => LX0 + (ix + 0.5) * CS;
 const cellZ = (iz) => LZ0 + (iz + 0.5) * CS;
+const active = new Uint8Array(NC);
+let NA = NC;
+function applyLevel(i) {
+  LV = LEVELS[i];
+  NA = 0;
+  for (let iz = 0; iz < GZ; iz++) for (let ix = 0; ix < GX; ix++) {
+    const x = cellX(ix), z = cellZ(iz);
+    const a = x > LV.x0 && x < LV.x1 && z > LV.z0 && z < LV.z1 ? 1 : 0;
+    active[cellIndex(ix, iz)] = a; NA += a;
+  }
+  buildLevelDecor();
+}
 function cellAt(x, z) {
   const ix = Math.floor((x - LX0) / CS), iz = Math.floor((z - LZ0) / CS);
   if (ix < 0 || iz < 0 || ix >= GX || iz >= GZ) return -1;
@@ -61,7 +81,7 @@ function cellAt(x, z) {
 }
 function cellH(c) {
   let h = -cut[c] + base[c];
-  if (asph[c]) h += ASPH_LOOSE - (ASPH_LOOSE - ASPH_DONE) * Math.min(passes[c], 3) / 3;
+  if (asph[c]) h += ASPH_LOOSE - (ASPH_LOOSE - ASPH_DONE) * Math.min(passes[c], PASS_N) / PASS_N;
   return h + seal[c] * 0.002;
 }
 
@@ -273,16 +293,34 @@ for (let x = -400; x < 400; x += 6) {
 }
 flatStrip(-400, 400, 11.75, 11.88, M.paint, 0.02, 1);
 flatStrip(-400, 400, 18.12, 18.25, M.paint, 0.02, 1);
-// spray-painted lot outline
-{
-  const mat = new THREE.MeshBasicMaterial({ color: 0xff6a13 });
+// per-level lot decor: spray-painted outline, corner stakes, cones (cones don't block machines)
+const levelDecor = new THREE.Group();
+scene.add(levelDecor);
+const outlineMat = new THREE.MeshBasicMaterial({ color: 0xff6a13 });
+const coneGeo = new THREE.ConeGeometry(0.2, 0.6, 12); coneGeo.translate(0, 0.3, 0);
+const bandGeo = new THREE.CylinderGeometry(0.115, 0.14, 0.1, 12);
+const stakeMat = new THREE.MeshStandardMaterial({ color: 0xc8a06a });
+const flagMat = new THREE.MeshStandardMaterial({ color: 0xff3d7f, side: THREE.DoubleSide });
+function buildLevelDecor() {
+  levelDecor.clear();
+  const { x0, x1, z0, z1 } = LV;
   const segs = [];
-  for (let x = LX0; x < LX1; x += 1.2) segs.push([x, LZ0 - 0.25, Math.min(0.7, LX1 - x), 0.08], [x, LZ1 + 0.17, Math.min(0.7, LX1 - x), 0.08]);
-  for (let z = LZ0; z < LZ1; z += 1.2) segs.push([LX0 - 0.25, z, 0.08, Math.min(0.7, LZ1 - z)], [LX1 + 0.17, z, 0.08, Math.min(0.7, LZ1 - z)]);
+  for (let x = x0; x < x1; x += 1.2) segs.push([x, z0 - 0.25, Math.min(0.7, x1 - x), 0.08], [x, z1 + 0.17, Math.min(0.7, x1 - x), 0.08]);
+  for (let z = z0; z < z1; z += 1.2) segs.push([x0 - 0.25, z, 0.08, Math.min(0.7, z1 - z)], [x1 + 0.17, z, 0.08, Math.min(0.7, z1 - z)]);
   for (const [x, z, w, d] of segs) {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), mat);
-    m.position.set(x + w / 2, 0.02, z + d / 2);
-    scene.add(m);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), outlineMat);
+    m.position.set(x + w / 2, 0.025, z + d / 2);
+    levelDecor.add(m);
+  }
+  for (const [x, z] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]]) {
+    box(0.05, 0.9, 0.05, stakeMat, x, 0.45, z, levelDecor, false);
+    box(0.02, 0.18, 0.3, flagMat, x, 0.8, z + 0.15, levelDecor, false);
+  }
+  // cones well clear of the lot, along the street side
+  for (let x = -20; x <= 20; x += 4) {
+    if (Math.abs(x) < 7) continue;
+    const c = new THREE.Mesh(coneGeo, M.orange); c.position.set(x, 0, 10.9); c.castShadow = true; levelDecor.add(c);
+    const b = new THREE.Mesh(bandGeo, M.white); b.position.set(x, 0.36, 10.9); levelDecor.add(b);
   }
 }
 
@@ -315,7 +353,7 @@ scene.add(lotMesh);
 
 const lin = (hex) => new THREE.Color(hex);
 const P = {
-  grass: lin(0x5a7c35), grass2: lin(0x6f8f3f), dirt: lin(0x8a6440), dirtDeep: lin(0x6a4a2e),
+  grass: lin(0x5a7c35), grassOut: lin(0x587d33), grass2: lin(0x6f8f3f), dirt: lin(0x8a6440), dirtDeep: lin(0x6a4a2e),
   stoneLow: lin(0x7c7568), stone: lin(0xa8a297), asphHot: lin(0x4a3a2e), asph: lin(0x343334),
   asphDone: lin(0x242425), sealed: lin(0x0f0f11),
 };
@@ -325,10 +363,11 @@ const tmpC = new THREE.Color();
 function cellColor(c, out) {
   if (seal[c] > 0) out.copy(P.asphDone).lerp(P.sealed, seal[c]);
   else if (asph[c]) {
-    const k = Math.min(passes[c], 3) / 3;
+    const k = Math.min(passes[c], PASS_N) / PASS_N;
     out.copy(P.asph).lerp(P.asphDone, k).lerp(P.asphHot, temp[c] * 0.55 * (1 - k * 0.7));
   } else if (base[c] > 0.003) out.copy(P.stoneLow).lerp(P.stone, Math.min(1, base[c] / BASE_T));
   else if (cut[c] > 0.003) out.copy(P.dirt).lerp(P.dirtDeep, Math.min(1, cut[c] / TARGET_CUT));
+  else if (!active[c]) out.copy(P.grassOut).lerp(P.grass2, rnd[c] * 0.5);
   else out.copy(P.grass).lerp(P.grass2, rnd[c]);
   const v = 0.9 + rnd[c] * 0.2;
   out.r *= v; out.g *= v; out.b *= v;
@@ -371,7 +410,7 @@ function groundH(x, z) {
   const a = vh[j0 * NVX + i0], b = vh[j0 * NVX + i0 + 1], c = vh[(j0 + 1) * NVX + i0], d = vh[(j0 + 1) * NVX + i0 + 1];
   return lerp(lerp(a, b, fu), lerp(c, d, fu), fw);
 }
-const inLot = (x, z, pad = 0) => x > LX0 - pad && x < LX1 + pad && z > LZ0 - pad && z < LZ1 + pad;
+const inLot = (x, z, pad = 0) => x > LV.x0 - pad && x < LV.x1 + pad && z > LV.z0 - pad && z < LV.z1 + pad;
 
 // ---------------------------------------------------------------- scenery
 const obstacles = []; // static: {x,z,r} circles or {x0,x1,z0,z1} boxes
@@ -459,6 +498,7 @@ const obstacles = []; // static: {x,z,r} circles or {x0,x1,z0,z1} boxes
   while (k < N) {
     const x = (r() - 0.5) * 120, z = (r() - 0.5) * 90;
     if (x > LX0 - 1 && x < LX1 + 1 && z > LZ0 - 1 && z < LZ1 + 1) continue;
+    if (x > -30 && x < -26 && z > 8 && z < 11) continue;
     if (z > -13 && z < -7.8) continue;           // haul road
     if (z > 11 && z < 19) continue;              // street
     if ((x < -12.5 && x > -23.5 || x > 12.5 && x < 25) && z > -8 && z < 9.5) continue; // pads
@@ -497,26 +537,11 @@ const obstacles = []; // static: {x,z,r} circles or {x0,x1,z0,z1} boxes
     scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), wireMat));
   }
 
-  // cones + barrels along the street side of the lot
-  const coneGeo = new THREE.ConeGeometry(0.2, 0.6, 12); coneGeo.translate(0, 0.3, 0);
-  const bandGeo = new THREE.CylinderGeometry(0.115, 0.14, 0.1, 12);
-  for (let x = LX0 + 0.5; x <= LX1; x += 3) {
-    if (Math.abs(x) < 6.5) continue;
-    const c = new THREE.Mesh(coneGeo, M.orange); c.position.set(x, 0, LZ1 + 0.9); c.castShadow = true; scene.add(c);
-    const b = new THREE.Mesh(bandGeo, M.white); b.position.set(x, 0.36, LZ1 + 0.9); scene.add(b);
-    obstacles.push({ x, z: LZ1 + 0.9, r: 0.25 });
-  }
   const barrelGeo = new THREE.CylinderGeometry(0.33, 0.33, 1, 14);
-  for (const [x, z] of [[-6.6, 10.5], [6.6, 10.5], [-24, -8.5], [25, -8.5]]) {
+  for (const [x, z] of [[-7.2, 11.0], [7.2, 11.0], [-24, -8.5], [25, -8.5]]) {
     const b = new THREE.Mesh(barrelGeo, M.orange); b.position.set(x, 0.5, z); b.castShadow = true; scene.add(b);
     for (const y of [0.3, 0.65]) { const w = cyl(0.335, 0.12, M.white, x, y, z, null, scene, 14); w.castShadow = false; }
     obstacles.push({ x, z, r: 0.4 });
-  }
-  // corner stakes with flags
-  for (const [x, z] of [[LX0, LZ0], [LX1, LZ0], [LX0, LZ1], [LX1, LZ1]]) {
-    const s = box(0.05, 0.9, 0.05, new THREE.MeshStandardMaterial({ color: 0xc8a06a }), x, 0.45, z, scene);
-    s.castShadow = false;
-    const f = box(0.02, 0.18, 0.3, new THREE.MeshStandardMaterial({ color: 0xff3d7f, side: THREE.DoubleSide }), x, 0.8, z + 0.15, scene, false);
   }
   // job sign
   const jobTex = canvasTex(512, (g, s) => {
@@ -526,14 +551,13 @@ const obstacles = []; // static: {x,z,r} circles or {x0,x1,z0,z1} boxes
     g.fillText('NEW PARKING', s / 2, 150); g.fillText('LOT UNDER', s / 2, 250); g.fillText('CONSTRUCTION', s / 2, 350);
     g.font = 'bold 40px Arial'; g.fillStyle = '#eee'; g.fillText('BLACKTOP LOT BUILDERS', s / 2, 440);
   });
-  const js = new THREE.Group(); js.position.set(9.5, 0, 10.4);
+  const js = new THREE.Group(); js.position.set(-28, 0, 9.5);
   box(0.12, 2.2, 0.12, poleMat, -1.1, 1.1, 0, js); box(0.12, 2.2, 0.12, poleMat, 1.1, 1.1, 0, js);
   const jm = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6), new THREE.MeshStandardMaterial({ map: jobTex, roughness: 0.7 }));
   jm.position.set(0, 2.3, 0.07); jm.rotation.y = Math.PI; js.add(jm);
   const jb = box(2.7, 2.7, 0.05, M.dark, 0, 2.3, 0, js);
   js.rotation.y = Math.PI;
   scene.add(js);
-  obstacles.push({ x: 9.5, z: 10.4, r: 0.4 }, { x: 8.4, z: 10.4, r: 0.2 }, { x: 10.6, z: 10.4, r: 0.2 });
 }
 
 // ---------------------------------------------------------------- particles
@@ -722,7 +746,7 @@ function buildExcavator() {
     cab: new THREE.Vector3(0.72, 0.98 + 0.22 + 1.28, 0.62), chaseDist: 10.5,
     maxV: 2.2, revV: 1.6, accel: 2.4, turn: 0.95, spin: true, radius: 1.9, len: 3.3, wid: 2.4,
     reach: new THREE.Vector3(-0.05, 0, 4.95), dumpReach: new THREE.Vector3(-0.05, 0, 5.4),
-    load: 0, cap: 100 * TARGET_CUT, loadLabel: 'BUCKET',
+    load: 0, cap: 150 * TARGET_CUT, loadLabel: 'BUCKET',
     pose: { a: -0.75, b: 2.0, c: 1.5 }, anim: null,
   };
 }
@@ -895,7 +919,7 @@ function buildDumpTruck(cargoMat, cabMat) {
 // ---------------------------------------------------------------- supplies / props
 const haul = (() => {
   const t = buildDumpTruck(M.dirt, M.white);
-  return { ...t, x: 2, z: -10.3, h: Math.PI / 2, v: 0, state: 'parked', load: 0, cap: 5 * 100 * TARGET_CUT, wait: 0, count: 0 };
+  return { ...t, x: 2, z: -10.3, h: Math.PI / 2, v: 0, state: 'parked', load: 0, cap: 5 * 150 * TARGET_CUT, wait: 0, count: 0 };
 })();
 const asphTruck = (() => {
   const t = buildDumpTruck(M.asphalt, M.yellow);
@@ -931,10 +955,10 @@ const STAGES = [
   {
     key: 'dig', name: 'EXCAVATE', title: 'Excavate the lot', build: buildExcavator,
     spawn: [15.5, -3, -Math.PI / 2],
-    desc: 'Strip the grass and topsoil out of the staked lot. Grade control stops every bite at exactly 5 inches.',
+    desc: 'Strip the grass and topsoil out of the staked lot. Grade control takes every bite to exactly 5 inches in one go.',
     tips: [
       'Drive with the joystick. The <b>ring on the ground</b> shows where the bucket will bite.',
-      'Tap <b>DIG</b>. The bucket holds about three bites.',
+      'Tap <b>DIG</b>. Each bite takes that spot straight to 5 in, so one pass does it. The bucket holds about three bites.',
       'When it is full, turn until the ring is over the <b>haul truck bed</b> and tap <b>DUMP</b>.',
       'Full trucks haul off and an empty one pulls in.',
     ],
@@ -947,7 +971,7 @@ const STAGES = [
     spawn: [-14.2, 5.5, Math.PI / 2],
     desc: 'Lay 3 inches of crushed stone over the dirt and level it to grade. This is what keeps the blacktop from cracking.',
     tips: [
-      'Your box blade starts full. Tap <b>BLADE DOWN</b> and drive over bare dirt to spread stone.',
+      'Your box blade starts full. Tap <b>BLADE DOWN</b> and drive over bare dirt. One pass lays the full 3 in.',
       'Drive into the <b>stone pile</b> on the west pad to refill the blade.',
       'Gray means at grade. Brown spots still need stone.',
     ],
@@ -971,15 +995,15 @@ const STAGES = [
   {
     key: 'roll', name: 'ROLL', title: 'Compact the mat', build: buildRoller,
     spawn: [15.5, -4.5, -Math.PI / 2],
-    desc: 'Compact the fresh asphalt. Every spot needs 3 passes with vibration on, and hot asphalt compacts best.',
+    desc: 'Compact the fresh asphalt. One pass with vibration on does it, and hot asphalt compacts best.',
     tips: [
-      'Tap <b>VIBE ON</b>, then roll back and forth over the mat.',
-      'Each pass darkens and smooths the mat. Three passes and it is done.',
+      'Tap <b>VIBE ON</b>, then roll over the mat in straight passes.',
+      'One pass over each spot darkens and smooths the mat, and that spot is done.',
       'The mat cools over time, so roll the <b>warm brown areas</b> first for the best quality.',
     ],
-    objective: 'Give every spot 3 passes',
-    done: (c) => passes[c] >= 3,
-    fill: (c) => { if (passes[c] < 3) { compQ[c] += (3 - passes[c]) * 0.15; passes[c] = 3; } },
+    objective: 'Roll every spot once',
+    done: (c) => passes[c] >= PASS_N,
+    fill: (c) => { if (passes[c] < PASS_N) { compQ[c] = 0.45; passes[c] = PASS_N; } },
   },
   {
     key: 'seal', name: 'SEAL COAT', title: 'Seal coat the lot', build: buildSealer,
@@ -998,7 +1022,7 @@ const STAGES = [
 
 // ---------------------------------------------------------------- game state
 const G = {
-  state: 'loading', stage: 0, time: 0, progress: 0, reached: false,
+  state: 'loading', level: 0, stage: 0, time: 0, progress: 0, reached: false,
   machine: null, parked: [], coverage: [], rollQ: 0,
   view: 'chase', lookYaw: 0, lookPitch: -0.12, orbitYaw: 0, orbitPitch: 0, lastLook: 0,
   frame: 0, finale: null, hintText: '',
@@ -1083,7 +1107,8 @@ function forCellsInRect(m, lx0, lx1, lz0, lz1, fn) {
   const iz0 = Math.max(0, Math.floor((minz - LZ0) / CS)), iz1 = Math.min(GZ - 1, Math.floor((maxz - LZ0) / CS));
   for (let iz = iz0; iz <= iz1; iz++) for (let ix = ix0; ix <= ix1; ix++) {
     const l = toLocal(m, cellX(ix), cellZ(iz));
-    if (l.x >= lx0 && l.x <= lx1 && l.z >= lz0 && l.z <= lz1) fn(cellIndex(ix, iz));
+    const c = cellIndex(ix, iz);
+    if (active[c] && l.x >= lx0 && l.x <= lx1 && l.z >= lz0 && l.z <= lz1) fn(c);
   }
 }
 function forCellsInCircle(x, z, r, fn) {
@@ -1091,7 +1116,8 @@ function forCellsInCircle(x, z, r, fn) {
   const iz0 = Math.max(0, Math.floor((z - r - LZ0) / CS)), iz1 = Math.min(GZ - 1, Math.floor((z + r - LZ0) / CS));
   for (let iz = iz0; iz <= iz1; iz++) for (let ix = ix0; ix <= ix1; ix++) {
     const d = Math.hypot(cellX(ix) - x, cellZ(iz) - z);
-    if (d <= r) fn(cellIndex(ix, iz), d);
+    const c = cellIndex(ix, iz);
+    if (active[c] && d <= r) fn(c, d);
   }
 }
 
@@ -1117,6 +1143,7 @@ function spawnMachine(i) {
   const st = STAGES[i];
   const m = st.build();
   m.x = st.spawn[0]; m.z = st.spawn[1]; m.h = st.spawn[2];
+  if (st.key === 'pave') m.z = LV.z0 + 1.5;
   m.v = 0; m.y = 0; m.pitch = 0; m.roll = 0;
   m.g.position.set(m.x, 0, m.z);
   m.g.rotation.y = m.h;
@@ -1176,18 +1203,17 @@ function driveMachine(m, dt, ax, ay, locked) {
   const obs = obstacles.concat(dynamicObstacles());
   for (const o of obs) {
     if (o.r !== undefined) {
-      const dx = m.x - o.x, dz = m.z - o.z, d = Math.hypot(dx, dz), min = o.r + m.radius;
-      if (d < min && d > 0.0001) { m.x = o.x + (dx / d) * min; m.z = o.z + (dz / d) * min; m.v *= 0.6; }
+      const dx = m.x - o.x, dz = m.z - o.z, d = Math.hypot(dx, dz), min = o.r + m.radius * 0.8;
+      if (d < min && d > 0.0001) { m.x = o.x + (dx / d) * min; m.z = o.z + (dz / d) * min; }
     } else {
       const cx = clamp(m.x, o.x0, o.x1), cz = clamp(m.z, o.z0, o.z1);
       const dx = m.x - cx, dz = m.z - cz, d = Math.hypot(dx, dz);
-      if (d < m.radius) {
-        if (d < 0.0001) { m.z = o.z1 + m.radius; } else { m.x = cx + (dx / d) * m.radius; m.z = cz + (dz / d) * m.radius; }
-        m.v *= 0.6;
+      if (d < m.radius * 0.8) {
+        if (d < 0.0001) { m.z = o.z1 + m.radius * 0.8; } else { m.x = cx + (dx / d) * m.radius * 0.8; m.z = cz + (dz / d) * m.radius * 0.8; }
       }
     }
   }
-  m.x = clamp(m.x, -55, 60); m.z = clamp(m.z, -18.5, 10.8);
+  m.x = clamp(m.x, -70, 75); m.z = clamp(m.z, -40, 30);
   // terrain follow
   const hl = m.len * 0.4, hw = m.wid * 0.4;
   const f = toWorld(m, 0, hl), b = toWorld(m, 0, -hl), l = toWorld(m, hw, 0), r = toWorld(m, -hw, 0);
@@ -1253,9 +1279,8 @@ function doBite(m) {
   const p = reachWorld(m);
   let removed = 0;
   const room = m.cap - m.load;
-  forCellsInCircle(p.x, p.z, 1.75, (c, d) => {
-    const target = d < 1.35 ? TARGET_CUT : TARGET_CUT * 0.6;
-    if (cut[c] < target) { removed += target - cut[c]; cut[c] = target; }
+  forCellsInCircle(p.x, p.z, 2.0, (c) => {
+    if (cut[c] < TARGET_CUT) { removed += TARGET_CUT - cut[c]; cut[c] = TARGET_CUT; }
   });
   m.load = Math.min(m.cap, m.load + removed);
   if (removed > 0) {
@@ -1374,11 +1399,10 @@ function workMachine(m, dt, now) {
   if (m.type === 'roller') {
     const f = G.frame;
     forCellsInRect(m, -0.9, 0.9, -1.85, 1.85, (c) => {
-      const entered = stamp[c] < f - 1;
       stamp[c] = f;
-      if (entered && m.toolOn && moving && asph[c] && passes[c] < 3 && now - lastPass[c] > 0.9) {
-        passes[c]++; lastPass[c] = now;
-        compQ[c] += (0.35 + 0.65 * temp[c]) / 3;
+      if (m.toolOn && moving && asph[c] && passes[c] < PASS_N) {
+        passes[c] = PASS_N; lastPass[c] = now;
+        compQ[c] = 0.35 + 0.65 * temp[c];
         lotDirty = true;
       }
     });
@@ -1469,7 +1493,7 @@ function updateMarker(m) {
   if (m.type === 'excavator') {
     const over = m.load > 0.01 && overTruckBed(m);
     const p = reachWorld(m, over);
-    const r = over ? 0.9 : 1.6;
+    const r = over ? 0.9 : 1.95;
     for (let i = 0; i < MARK_N; i++) { const a = (i / MARK_N) * Math.PI * 2; pts.push([p.x + Math.cos(a) * r, p.z + Math.sin(a) * r, over ? 2.85 : null]); }
     markerMat.color.set(over ? 0x5fd38a : m.load >= m.cap - 0.01 ? 0xff8a5c : 0xffd34d);
   } else {
@@ -1570,7 +1594,7 @@ function drawMinimap() {
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(lotImg, X(LX0), Z(LZ0), X(LX1) - X(LX0), Z(LZ1) - Z(LZ0));
   ctx.strokeStyle = '#ff6a13'; ctx.lineWidth = 1; ctx.setLineDash([3, 2]);
-  ctx.strokeRect(X(LX0), Z(LZ0), X(LX1) - X(LX0), Z(LZ1) - Z(LZ0));
+  ctx.strokeRect(X(LV.x0), Z(LV.z0), X(LV.x1) - X(LV.x0), Z(LV.z1) - Z(LV.z0));
   ctx.setLineDash([]);
   // supplies
   const s = STAGES[G.stage]?.key;
@@ -1617,7 +1641,7 @@ function cellUnder(m) {
 function updateHUD() {
   const m = G.machine;
   const st = STAGES[G.stage];
-  ui.stageChip.textContent = `STEP ${G.stage + 1}/5`;
+  ui.stageChip.textContent = `LVL ${G.level + 1} · ${G.stage + 1}/5`;
   ui.stageName.textContent = st.name;
   ui.clock.textContent = fmtTime(G.time);
   const pct = Math.floor(G.progress * 100);
@@ -1638,7 +1662,7 @@ function updateHUD() {
     if (m.type === 'excavator') read = `Cut ${(cut[c] * IN).toFixed(1)} of 5.0 in`;
     else if (m.type === 'skid') read = base[c] >= 0.065 ? 'Base at grade' : `Base ${(base[c] * IN).toFixed(1)} of 3.0 in`;
     else if (m.type === 'paver') read = asph[c] ? 'Mat down · 2.5 in loose' : 'Bare base';
-    else if (m.type === 'roller') read = asph[c] ? `Passes ${passes[c]}/3 · ${Math.round(140 + temp[c] * 160)}°F` : 'No asphalt';
+    else if (m.type === 'roller') read = asph[c] ? `${passes[c] >= PASS_N ? 'Rolled' : 'Needs rolling'} · ${Math.round(140 + temp[c] * 160)}°F` : 'No asphalt';
     else if (m.type === 'sealer') read = seal[c] > 0.5 ? 'Sealed' : asph[c] ? 'Needs sealer' : 'No asphalt';
   }
   ui.readLabel.textContent = m.type === 'excavator' ? 'UNDER BUCKET' : 'UNDER TOOL';
@@ -1667,8 +1691,8 @@ function updateHUD() {
 function computeProgress() {
   const st = STAGES[G.stage];
   let n = 0;
-  for (let c = 0; c < NC; c++) if (st.done(c)) n++;
-  return n / NC;
+  for (let c = 0; c < NC; c++) if (active[c] && st.done(c)) n++;
+  return n / NA;
 }
 function coolMat(dt) {
   for (let c = 0; c < NC; c++) if (asph[c] && temp[c] > 0.08) temp[c] = Math.max(0.08, temp[c] - dt / 420);
@@ -1701,10 +1725,10 @@ function nextStage() {
   G.coverage[G.stage] = G.progress;
   if (st.key === 'roll') {
     let q = 0, n = 0;
-    for (let c = 0; c < NC; c++) { q += Math.min(1, compQ[c]); n++; }
+    for (let c = 0; c < NC; c++) if (active[c]) { q += Math.min(1, compQ[c]); n++; }
     G.rollQ = q / n;
   }
-  for (let c = 0; c < NC; c++) if (!st.done(c)) st.fill(c);
+  for (let c = 0; c < NC; c++) if (active[c] && !st.done(c)) st.fill(c);
   lotDirty = true;
   const m = G.machine;
   m.toolOn = false;
@@ -1737,39 +1761,45 @@ function startFinale() {
   finaleGroup.clear();
   const items = [];
   const y = ASPH_DONE + 0.004;
-  // stall lines: north and south rows
-  for (const [z0, z1] of [[LZ0 + 0.3, LZ0 + 5.6], [LZ1 - 5.6, LZ1 - 0.3]]) {
-    for (let k = 0; k <= 8; k++) {
-      const x = -10.8 + k * 2.7;
-      const mat = k <= 1 && z0 < 0 ? M.paintBlue : M.paint;
-      const l = new THREE.Mesh(new THREE.PlaneGeometry(0.12, z1 - z0).rotateX(-Math.PI / 2), mat);
-      l.position.set(x, y, (z0 + z1) / 2);
+  const { x0, x1, z0, z1 } = LV;
+  const W = x1 - x0, D = z1 - z0;
+  const depth = Math.min(5.3, D * 0.36);
+  const nStalls = Math.floor((W - 1) / 2.7);
+  const sx0 = (x0 + x1) / 2 - (nStalls * 2.7) / 2;
+  const rows = [[z0 + 0.3, z0 + 0.3 + depth, -1], [z1 - 0.3 - depth, z1 - 0.3, 1]];
+  for (const [ra, rb, side] of rows) {
+    for (let k = 0; k <= nStalls; k++) {
+      const x = sx0 + k * 2.7;
+      const mat = k <= 1 && side < 0 ? M.paintBlue : M.paint;
+      const l = new THREE.Mesh(new THREE.PlaneGeometry(0.12, rb - ra).rotateX(-Math.PI / 2), mat);
+      l.position.set(x, y, (ra + rb) / 2);
       items.push(l);
     }
   }
-  // handicap stall fill hint
   const hc = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.4).rotateX(-Math.PI / 2), M.paintBlue);
-  hc.position.set(-9.45, y, LZ0 + 3.4); items.push(hc);
-  // aisle arrows
-  for (const [x, dir] of [[-5, 1], [5, -1]]) {
+  hc.position.set(sx0 + 1.35, y, z0 + 0.3 + depth / 2); items.push(hc);
+  for (const [x, dir] of [[(x0 + x1) / 2 - W * 0.22, 1], [(x0 + x1) / 2 + W * 0.22, -1]]) {
     const shape = new THREE.Shape();
     shape.moveTo(-0.15, -1); shape.lineTo(0.15, -1); shape.lineTo(0.15, 0.3); shape.lineTo(0.45, 0.3); shape.lineTo(0, 1); shape.lineTo(-0.45, 0.3); shape.lineTo(-0.15, 0.3); shape.closePath();
     const a = new THREE.Mesh(new THREE.ShapeGeometry(shape).rotateX(-Math.PI / 2), M.paint);
     a.rotation.y = dir > 0 ? -Math.PI / 2 : Math.PI / 2;
-    a.position.set(x, y, 0);
+    a.position.set(x, y, (z0 + z1) / 2);
     items.push(a);
   }
   for (const it of items) { it.visible = false; finaleGroup.add(it); }
   const cars = [];
   const colors = [0xc62828, 0x1565c0, 0xeeeeee, 0x2e7d32, 0x37474f, 0xf9a825];
-  const slots = [[-6.75, -1], [-1.35, -1], [4.05, -1], [-4.05, 1], [1.35, 1], [9.45, 1]];
-  slots.forEach(([x, side], i) => {
+  const slots = [];
+  for (let k = 2; k < nStalls; k += 2) slots.push([sx0 + (k + 0.5) * 2.7, -1]);
+  for (let k = 1; k < nStalls; k += 2) slots.push([sx0 + (k + 0.5) * 2.7, 1]);
+  slots.slice(0, 6).forEach(([x, side], i) => {
     const car = buildCar(colors[i % colors.length]);
-    const zStall = side < 0 ? LZ0 + 3.0 : LZ1 - 3.0;
+    const zStall = side < 0 ? z0 + 0.3 + depth / 2 : z1 - 0.3 - depth / 2;
     car.userData = { x, zStall, side, delay: 3.2 + i * 0.6 };
     car.rotation.y = side < 0 ? Math.PI : 0;
     car.visible = false;
-    car.position.set(x, ASPH_DONE, 0);
+    car.position.set(x, ASPH_DONE, (z0 + z1) / 2);
+    car.scale.setScalar(depth < 4.5 ? 0.85 : 1);
     finaleGroup.add(car);
     cars.push(car);
   });
@@ -1789,7 +1819,7 @@ function updateFinale(dt) {
     car.visible = true;
     // drive from aisle into stall
     const k = ease(Math.min(1, t / 1.6));
-    car.position.z = lerp(0, u.zStall, k);
+    car.position.z = lerp((LV.z0 + LV.z1) / 2, u.zStall, k);
     car.position.x = u.x + Math.sin(k * Math.PI) * 0.4;
   }
   if (F.t > 8.5 && G.state === 'finale') showResults();
@@ -1806,18 +1836,22 @@ function showResults() {
   $('stars').innerHTML = [0, 1, 2].map((i) => `<span class="${i < stars ? '' : 'off'}">★</span>`).join('');
   $('resultGrid').innerHTML = rows.map(([n, v]) => `<div class="res-row"><span>${n}</span><div class="rbar"><div style="width:${Math.round(Math.min(1, v) * 100)}%"></div></div><b>${Math.round(Math.min(1, v) * 100)}%</b></div>`).join('') +
     `<div class="res-row"><span><b style="font-family:inherit;text-align:left">Job time</b></span><span></span><b>${fmtTime(G.time)}</b></div>`;
-  const contract = 18500;
+  const contract = LV.contract;
   const qBonus = Math.round(Math.max(0, quality - 0.8) * 5 * 4000 / 50) * 50;
-  const tBonus = Math.round(Math.max(0, 1 - G.time / 1500) * 3000 / 50) * 50;
+  const tBonus = Math.round(Math.max(0, 1 - G.time / (G.level === 0 ? 800 : 1500)) * (G.level === 0 ? 1500 : 3000) / 50) * 50;
   const total = contract + qBonus + tBonus;
   const money = (v) => `$${v.toLocaleString()}`;
   $('invoice').innerHTML = `<div class="line"><span>INVOICE · Corner Market lot</span><span>#${1000 + Math.floor(Math.random() * 9000)}</span></div>
-    <div class="line"><span>Contract (24 × 14 m lot)</span><span>${money(contract)}</span></div>
+    <div class="line"><span>Level ${G.level + 1} contract (${LV.x1 - LV.x0} × ${LV.z1 - LV.z0} m lot)</span><span>${money(contract)}</span></div>
     <div class="line"><span>Quality bonus (${score}%)</span><span>${money(qBonus)}</span></div>
     <div class="line"><span>Schedule bonus</span><span>${money(tBonus)}</span></div>
     <div class="line total"><span>TOTAL PAID</span><span>${money(total)}</span></div>`;
   const best = loadBest();
   if (!best || total > best.total) { try { localStorage.setItem('blacktop-best', JSON.stringify({ total, time: G.time, score })); } catch (e) { /* storage unavailable */ } }
+  const hasNext = G.level + 1 < LEVELS.length;
+  if (hasNext) unlockLevel(G.level + 1);
+  $('resultsTitle').textContent = hasNext ? `Level ${G.level + 1} complete!` : "Lot's open for business";
+  $('againBtn').textContent = hasNext ? `NEXT: LEVEL ${G.level + 2} ▶` : 'PLAY AGAIN';
   show('results', true);
   Sound.chime([523, 659, 784, 1047, 1319]);
 }
@@ -1834,8 +1868,11 @@ function resetJob() {
   G.time = 0; G.coverage = []; G.rollQ = 0;
   haul.x = 2; haul.state = 'parked'; haul.load = 0; haul.count = 0;
 }
-function startJob() {
+function startJob(level = G.level) {
+  G.level = level;
+  applyLevel(level);
   resetJob();
+  lotDirty = true;
   show('title', false); show('results', false); show('pause', false);
   beginStage(0);
 }
@@ -1846,17 +1883,32 @@ function pause(on) {
 function loadBest() {
   try { return JSON.parse(localStorage.getItem('blacktop-best') || 'null'); } catch (e) { return null; }
 }
+function unlockedLevels() {
+  try { return Math.max(1, Number(localStorage.getItem('blacktop-unlocked')) || 1); } catch (e) { return 1; }
+}
+function unlockLevel(i) {
+  try { if (unlockedLevels() < i + 1) localStorage.setItem('blacktop-unlocked', String(i + 1)); } catch (e) { /* storage unavailable */ }
+  renderLevelPicker();
+}
+function renderLevelPicker() {
+  const n = unlockedLevels();
+  $('levelPick').innerHTML = LEVELS.map((L, i) => `<button class="lvl-btn${i < n ? '' : ' locked'}" data-l="${i}" ${i < n ? '' : 'disabled'}>
+    <b>LEVEL ${i + 1}</b><span>${L.name} · ${L.x1 - L.x0}×${L.z1 - L.z0} m</span>${i < n ? '' : '<i>🔒 Finish level ' + i + '</i>'}</button>`).join('');
+  for (const b of $('levelPick').querySelectorAll('button:not([disabled])')) b.addEventListener('click', () => { Sound.init(); startJob(Number(b.dataset.l)); });
+}
 function bestLine() {
   const best = loadBest();
   $('bestLine').textContent = best ? `Best job: $${best.total.toLocaleString()} paid · ${best.score}% quality · ${fmtTime(best.time)}` : '';
 }
 
-$('startBtn').addEventListener('click', () => { Sound.init(); startJob(); });
+$('startBtn').addEventListener('click', () => { Sound.init(); startJob(0); });
 $('cardGo').addEventListener('click', () => { Sound.init(); show('card', false); G.state = 'play'; snapCamera = true; });
 $('menuBtn').addEventListener('click', () => pause(true));
 $('resumeBtn').addEventListener('click', () => pause(false));
 $('restartBtn').addEventListener('click', () => { show('pause', false); startJob(); });
-$('againBtn').addEventListener('click', () => { show('results', false); startJob(); });
+$('againBtn').addEventListener('click', () => { show('results', false); startJob(Math.min(LEVELS.length - 1, G.level + 1)); });
+$('replayBtn').addEventListener('click', () => { show('results', false); startJob(G.level); });
+$('titleBtn').addEventListener('click', () => { show('results', false); resetJob(); G.state = 'title'; show('hud', false); show('title', true); bestLine(); renderLevelPicker(); });
 $('soundBtn').addEventListener('click', () => { Sound.on = !Sound.on; $('soundBtn').textContent = `SOUND: ${Sound.on ? 'ON' : 'OFF'}`; });
 $('fsBtn').addEventListener('click', () => {
   const el = document.documentElement;
@@ -1927,9 +1979,11 @@ function frame(now) {
 // ---------------------------------------------------------------- boot
 addEventListener('resize', resize);
 resize();
+applyLevel(0);
 resetLot();
 rebuildLot();
 updateSupplies();
+renderLevelPicker();
 haul.g.position.set(haul.x, 0, haul.z); haul.g.rotation.y = haul.h;
 G.state = 'title';
 bestLine();

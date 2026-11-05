@@ -69,7 +69,8 @@
           <li><i>4</i><b>Roll</b><span>Roller</span></li>
           <li><i>5</i><b>Seal coat</b><span>Sealer truck</span></li>
         </ol>
-        <button id="startBtn" class="big-btn">START THE JOB</button>
+        <button id="startBtn" class="big-btn">START LEVEL 1</button>
+        <div id="levelPick"></div>
         <div id="bestLine" class="muted"></div>
         <details class="controls">
           <summary>Controls</summary>
@@ -106,11 +107,12 @@
     <div id="results" class="overlay hidden">
       <div class="panel card-panel">
         <div class="kicker">JOB COMPLETE</div>
-        <h2>Lot's open for business</h2>
+        <h2 id="resultsTitle">Lot's open for business</h2>
         <div id="stars"></div>
         <div id="resultGrid"></div>
         <div id="invoice"></div>
-        <button id="againBtn" class="big-btn">START A NEW JOB</button>
+        <button id="againBtn" class="big-btn">NEXT LEVEL</button>
+        <div class="row-btns"><button id="replayBtn" class="ghost-btn">REPLAY LEVEL</button><button id="titleBtn" class="ghost-btn">MAIN MENU</button></div>
       </div>
     </div>
 

@@ -27,11 +27,13 @@ There is no build step. Drag this folder into Netlify, or connect the repo with 
 
 A 3D job site simulator in `game/`. You take a parking lot from grass to sealed blacktop and drive every machine yourself:
 
-1. **Excavate** with an excavator. Dig 5 in (grade control) and dump the bucket into haul trucks.
-2. **Grade base** with a skid steer and box blade. Spread 3 in of stone and refill from the stone pile.
+1. **Excavate** with an excavator. Each bite goes straight to 5 in, and you dump the bucket into haul trucks.
+2. **Grade base** with a skid steer and box blade. One pass spreads 3 in of stone, and you refill from the stone pile.
 3. **Pave** with an asphalt paver. Lay the mat from the screed and reload at the asphalt truck.
-4. **Roll** with a double-drum roller. Each spot needs 3 vibratory passes, and hot asphalt compacts best.
+4. **Roll** with a double-drum roller. One vibratory pass compacts each spot, and hot asphalt compacts best.
 5. **Seal coat** with a sealer truck. Spray the lot and refill at the totes.
+
+Every stage takes one pass per spot. **Level 1** is a small 17 × 10 m lot. Finishing it unlocks **Level 2**, the full 24 × 14 m lot.
 
 At the end a crew stripes the stalls, cars pull in, and you get a quality score and an invoice.
 
