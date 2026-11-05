@@ -1100,9 +1100,18 @@ function readInput() {
   if (k.has('KeyS') || k.has('ArrowDown')) ky -= 1;
   if (k.has('KeyD') || k.has('ArrowRight')) kx += 1;
   if (k.has('KeyA') || k.has('ArrowLeft')) kx -= 1;
-  const dz = (v) => (Math.abs(v) < 0.12 ? 0 : (v - Math.sign(v) * 0.12) / 0.88);
-  input.x = clamp(dz(input.jx) + kx, -1, 1);
-  input.y = clamp(dz(input.jy) + ky, -1, 1);
+  // radial dead zone, so pushing straight sideways gives a clean full turn
+  let jx = input.jx, jy = input.jy;
+  const mag = Math.hypot(jx, jy);
+  if (mag < 0.12) { jx = 0; jy = 0; } else {
+    const k = Math.min(1, (mag - 0.12) / 0.88) / mag;
+    jx *= k; jy *= k;
+    if (Math.abs(jy) < 0.1 * Math.abs(jx) + 0.04) jy = 0; // ignore small wobble off the horizontal
+  }
+  // gentle curve on steering for fine control near centre, full lock at the edge
+  jx = Math.sign(jx) * Math.pow(Math.abs(jx), 1.3);
+  input.x = clamp(jx + kx, -1, 1);
+  input.y = clamp(jy + ky, -1, 1);
 }
 
 // ---------------------------------------------------------------- helpers
@@ -1219,14 +1228,32 @@ function dynamicObstacles() {
 // ---------------------------------------------------------------- physics
 function driveMachine(m, dt, ax, ay, locked) {
   if (locked) { ax = 0; ay = 0; }
-  const target = ay >= 0 ? ay * m.maxV : ay * m.revV;
+  // Wheeled machines can't pivot, so a stick pushed mostly sideways creeps them
+  // along (in the direction the stick leans, forward by default) so they still turn.
+  let throttle = ay;
+  if (!m.spin && Math.abs(ax) > 0.2 && Math.abs(ay) < 0.35) {
+    const dir = ay < -0.08 || (Math.abs(ay) <= 0.08 && m.v < -0.3) ? -1 : 1;
+    throttle = dir * Math.max(Math.abs(ay), Math.abs(ax) * 0.45);
+  }
+  const target = throttle >= 0 ? throttle * m.maxV : throttle * m.revV;
   const a = Math.sign(target - m.v) === Math.sign(m.v) || m.v === 0 ? m.accel : m.accel * 1.8;
   m.v += clamp(target - m.v, -a * dt, a * dt);
-  if (Math.abs(m.v) < 0.01 && ay === 0) m.v = 0;
-  let turn;
-  if (m.spin) turn = ax * m.turn * (Math.abs(m.v) > 0.2 && m.v < 0 ? -1 : 1);
-  else turn = ax * m.turn * clamp(m.v / (m.maxV * 0.35), -1, 1);
-  m.h -= turn * dt;
+  if (Math.abs(m.v) < 0.01 && throttle === 0) m.v = 0;
+  // target turn rate
+  let turnT;
+  if (m.spin) {
+    // tracked / skid steer: pivots in place at full rate, a bit gentler at speed
+    const speedK = 1 - 0.3 * Math.min(1, Math.abs(m.v) / m.maxV);
+    turnT = ax * m.turn * 1.15 * speedK * (m.v < -0.2 ? -1 : 1);
+  } else {
+    // car-style: needs a little rolling speed, reaches full lock quickly
+    turnT = ax * m.turn * 1.2 * clamp(m.v / (m.maxV * 0.2), -1, 1);
+  }
+  // ease into and out of turns instead of snapping
+  m.w = m.w ?? 0;
+  m.w += (turnT - m.w) * Math.min(1, dt * 8);
+  if (Math.abs(m.w) < 0.0005 && ax === 0) m.w = 0;
+  m.h -= m.w * dt;
   const fx = Math.sin(m.h), fz = Math.cos(m.h);
   m.x += fx * m.v * dt; m.z += fz * m.v * dt;
   // collisions
