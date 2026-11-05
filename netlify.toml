@@ -1,0 +1,4 @@
+# Netlify: publish the Blacktop Lot Builder game (no build step)
+[build]
+  publish = "game"
+  command = ""
